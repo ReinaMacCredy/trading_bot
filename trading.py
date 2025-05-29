@@ -15,6 +15,18 @@ class TradingBot:
         api_key = os.getenv('BINANCE_API_KEY')
         api_secret = os.getenv('BINANCE_API_SECRET')
         
+        # Log API key status (safely)
+        if api_key:
+            masked_key = api_key[:4] + '*' * (len(api_key) - 8) + api_key[-4:] if len(api_key) > 8 else '****'
+            logger.info(f"API Key loaded: {masked_key}")
+        else:
+            logger.error("Binance API Key not found in environment variables")
+        
+        if api_secret:
+            logger.info("API Secret loaded (value hidden)")
+        else:
+            logger.error("Binance API Secret not found in environment variables")
+        
         if not api_key or not api_secret:
             logger.error("Binance API credentials not found in environment variables")
             raise ValueError("Binance API credentials not configured")
@@ -32,6 +44,12 @@ class TradingBot:
             return non_zero
         except BinanceAPIException as e:
             logger.error(f"Error getting account balance: {e}")
+            logger.error(f"Error code: {e.code}, Error message: {e.message}")
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error getting account balance: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
             return None
     
     def get_price(self, symbol):
@@ -242,4 +260,30 @@ class TradingBot:
             return buf
         except Exception as e:
             logger.error(f"Error generating strategy chart: {e}")
-            return None 
+            return None
+    
+    def test_connection(self):
+        """Test Binance API connection and credentials"""
+        try:
+            # Test API Key validity
+            status = self.client.get_system_status()
+            logger.info(f"Binance system status: {status}")
+            
+            # Ping the API
+            ping_result = self.client.ping()
+            logger.info(f"Ping result: {ping_result}")
+            
+            # Get server time
+            server_time = self.client.get_server_time()
+            logger.info(f"Server time: {server_time}")
+            
+            return True
+        except BinanceAPIException as e:
+            logger.error(f"API Error during connection test: {e}")
+            logger.error(f"Error code: {e.code}, Error message: {e.message}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error during connection test: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return False 

@@ -29,6 +29,8 @@ A Discord bot that lets you monitor cryptocurrency prices, view charts, and exec
    BINANCE_API_KEY=your_binance_api_key
    BINANCE_API_SECRET=your_binance_api_secret
    ```
+   
+   **Note**: If you don't create a `.env` file, the bot will prompt you to enter your Discord token when you run it.
 
 ### Discord Bot Setup
 
@@ -41,7 +43,7 @@ A Discord bot that lets you monitor cryptocurrency prices, view charts, and exec
 ### Binance API Setup
 
 1. Create a Binance account if you don't have one
-2. Go to API Management and create a new API key
+2. Go to API Management at https://www.binance.com/en/my/settings/api-management and create a new API key
 3. Enable trading permissions for the API key (recommended to restrict by IP)
 4. Add the API key and secret to your `.env` file
 

@@ -24,6 +24,13 @@ logger = logging.getLogger('bot')
 load_dotenv()
 token = os.getenv('DISCORD_TOKEN')
 
+# If token is not found in environment variables, prompt for it
+if token is None:
+    print("Discord token not found in environment variables.")
+    token = input("Please enter your Discord bot token: ")
+    if not token:
+        raise ValueError("Discord token is required to run the bot.")
+
 # Setup bot
 intents = discord.Intents.default()
 intents.members = True
@@ -45,7 +52,11 @@ async def on_ready():
 
 @bot.command(name='price')
 async def get_price(ctx, symbol: str):
-    """Get the current price of a cryptocurrency"""
+    """Get the current price of a cryptocurrency.
+    
+    Parameters:
+    - symbol: The cryptocurrency symbol (e.g., BTC, ETH)
+    """
     if not trading_bot:
         await ctx.send("Trading bot is not initialized. Check logs for details.")
         return
@@ -84,7 +95,13 @@ async def get_balance(ctx):
 
 @bot.command(name='chart')
 async def get_chart(ctx, symbol: str, interval: str = '1d', limit: int = 30):
-    """Generate a price chart for a cryptocurrency"""
+    """Generate a price chart for a cryptocurrency.
+    
+    Parameters:
+    - symbol: The cryptocurrency symbol (e.g., BTC, ETH)
+    - interval: Time interval (default: 1d)
+    - limit: Number of data points (default: 30)
+    """
     if not trading_bot:
         await ctx.send("Trading bot is not initialized. Check logs for details.")
         return
@@ -108,7 +125,12 @@ async def get_chart(ctx, symbol: str, interval: str = '1d', limit: int = 30):
 
 @bot.command(name='buy')
 async def buy(ctx, symbol: str, quantity: float):
-    """Buy a cryptocurrency at market price"""
+    """Buy a cryptocurrency at market price.
+    
+    Parameters:
+    - symbol: The cryptocurrency symbol (e.g., BTC, ETH)
+    - quantity: Amount to buy
+    """
     if not trading_bot:
         await ctx.send("Trading bot is not initialized. Check logs for details.")
         return
@@ -127,7 +149,12 @@ async def buy(ctx, symbol: str, quantity: float):
 
 @bot.command(name='sell')
 async def sell(ctx, symbol: str, quantity: float):
-    """Sell a cryptocurrency at market price"""
+    """Sell a cryptocurrency at market price.
+    
+    Parameters:
+    - symbol: The cryptocurrency symbol (e.g., BTC, ETH)
+    - quantity: Amount to sell
+    """
     if not trading_bot:
         await ctx.send("Trading bot is not initialized. Check logs for details.")
         return
@@ -151,7 +178,13 @@ async def list_strategies(ctx):
 
 @bot.command(name='analyze')
 async def analyze(ctx, strategy: str, symbol: str, interval: str = '1d'):
-    """Analyze a symbol using a specific strategy"""
+    """Analyze a symbol using a specific strategy.
+    
+    Parameters:
+    - strategy: Strategy name (e.g., ma_crossover, rsi, bollinger_bands)
+    - symbol: The cryptocurrency symbol (e.g., BTC, ETH)
+    - interval: Time interval (default: 1d)
+    """
     if not trading_bot:
         await ctx.send("Trading bot is not initialized. Check logs for details.")
         return
@@ -192,7 +225,14 @@ async def analyze(ctx, strategy: str, symbol: str, interval: str = '1d'):
 
 @bot.command(name='strategy_chart')
 async def strategy_chart(ctx, strategy: str, symbol: str, interval: str = '1d', limit: int = 30):
-    """Generate a chart with strategy indicators"""
+    """Generate a chart with strategy indicators.
+    
+    Parameters:
+    - strategy: Strategy name (e.g., ma_crossover, rsi, bollinger_bands)
+    - symbol: The cryptocurrency symbol (e.g., BTC, ETH)
+    - interval: Time interval (default: 1d)
+    - limit: Number of data points (default: 30)
+    """
     if not trading_bot:
         await ctx.send("Trading bot is not initialized. Check logs for details.")
         return
@@ -216,7 +256,13 @@ async def strategy_chart(ctx, strategy: str, symbol: str, interval: str = '1d', 
 
 @bot.command(name='add_strategy')
 async def add_strategy(ctx, strategy: str, symbol: str, interval: str = '1d'):
-    """Add a strategy to monitor"""
+    """Add a strategy to monitor.
+    
+    Parameters:
+    - strategy: Strategy name (e.g., ma_crossover, rsi, bollinger_bands)
+    - symbol: The cryptocurrency symbol (e.g., BTC, ETH)
+    - interval: Time interval (default: 1d)
+    """
     if not trading_bot:
         await ctx.send("Trading bot is not initialized. Check logs for details.")
         return
@@ -239,7 +285,13 @@ async def add_strategy(ctx, strategy: str, symbol: str, interval: str = '1d'):
 
 @bot.command(name='remove_strategy')
 async def remove_strategy(ctx, strategy: str, symbol: str, interval: str = '1d'):
-    """Remove a strategy from monitoring"""
+    """Remove a strategy from monitoring.
+    
+    Parameters:
+    - strategy: Strategy name (e.g., ma_crossover, rsi, bollinger_bands)
+    - symbol: The cryptocurrency symbol (e.g., BTC, ETH)
+    - interval: Time interval (default: 1d)
+    """
     if not trading_bot:
         await ctx.send("Trading bot is not initialized. Check logs for details.")
         return
@@ -274,10 +326,42 @@ async def list_active_strategies(ctx):
     
     await ctx.send(response)
 
+@bot.command(name='test_connection')
+async def test_binance_connection(ctx):
+    """Test Binance API connection and credentials"""
+    if not trading_bot:
+        await ctx.send("Trading bot is not initialized. Check logs for details.")
+        return
+    
+    await ctx.send("Testing Binance API connection...")
+    
+    success = trading_bot.test_connection()
+    
+    if success:
+        await ctx.send("✅ Binance API connection successful! The API credentials are working properly.")
+    else:
+        await ctx.send("❌ Binance API connection failed. Check the logs for detailed error information.")
+        # Check if we can at least get public data
+        try:
+            symbol = "BTCUSDT"
+            price = trading_bot.get_price(symbol)
+            if price:
+                await ctx.send(f"However, public API endpoints are working. Got {symbol} price: ${price}")
+                await ctx.send("This suggests your API key might be valid but doesn't have the required permissions for account access.")
+            else:
+                await ctx.send("Failed to access public API endpoints as well. There might be network issues or the API key is invalid.")
+        except Exception as e:
+            await ctx.send(f"Error testing public endpoints: {str(e)}")
+
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
         await ctx.send("Command not found. Type `//help` to see available commands.")
+    elif isinstance(error, commands.MissingRequiredArgument):
+        if error.param.name == 'symbol':
+            await ctx.send(f"Missing required argument: `symbol`. Please provide a cryptocurrency symbol (e.g., BTC, ETH).")
+        else:
+            await ctx.send(f"Missing required argument: `{error.param.name}`. Type `//help {ctx.command}` for more information.")
     else:
         logger.error(f"Command error: {error}")
         await ctx.send(f"An error occurred: {error}")
