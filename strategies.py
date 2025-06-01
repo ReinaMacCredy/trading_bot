@@ -139,12 +139,71 @@ class BollingerBandsStrategy(TradingStrategy):
         
         return signals
 
+class SCStrategySignal(TradingStrategy):
+    """Strategic Crypto (SC) signal strategy as shown in the example"""
+    def __init__(self, version="SC01", author="Reina"):
+        super().__init__(f"{version} trading signals")
+        self.version = version
+        self.author = author
+        logger.info(f"Initialized {self.name} strategy")
+    
+    def generate_signal(self, symbol, strategy_code, entry_price, tp_price, sl_price, 
+                        ratio=0.0, status="takeprofit", imminent=1):
+        """
+        Generate a trading signal with the specified parameters
+        
+        Args:
+            symbol (str): Trading symbol (e.g., AAVE)
+            strategy_code (str): Strategy code (e.g., SC02, SC02+FRVP)
+            entry_price (float): Entry price
+            tp_price (float): Take profit price
+            sl_price (float): Stop loss price
+            ratio (float): Risk/reward ratio as percentage
+            status (str): Current status (e.g., "takeprofit")
+            imminent (int): Imminent entry indicator (1 for imminent)
+            
+        Returns:
+            dict: Signal details
+        """
+        # Format the prices to have consistent decimal places
+        entry_price_str = f"{float(entry_price):.4f}"
+        tp_price_str = f"{float(tp_price):.4f}"
+        sl_price_str = f"{float(sl_price):.4f}"
+        
+        # Format ratio as percentage with 2 decimal places
+        if isinstance(ratio, float):
+            ratio_str = f"{ratio:.2f}%"
+        else:
+            ratio_str = ratio if ratio.endswith('%') else f"{ratio}%"
+        
+        return {
+            "symbol": symbol,
+            "strategy_code": strategy_code,
+            "pair": f"{symbol} - {strategy_code}",
+            "entry_price": entry_price_str,
+            "tp_price": tp_price_str,
+            "sl_price": sl_price_str,
+            "ratio": ratio_str,
+            "status": status,
+            "imminent": imminent,
+            "author": self.author,
+            "version": self.version
+        }
+    
+    def analyze(self, data):
+        """
+        This strategy doesn't perform auto-analysis but is used for manual signal generation
+        """
+        logger.warning("SCStrategySignal is for manual signal generation, not automatic analysis")
+        return None
+
 def get_strategy(strategy_name, **kwargs):
     """Factory function to get a strategy instance by name"""
     strategies = {
         'ma_crossover': MovingAverageCrossover,
         'rsi': RSIStrategy,
-        'bollinger_bands': BollingerBandsStrategy
+        'bollinger_bands': BollingerBandsStrategy,
+        'sc_signal': SCStrategySignal
     }
     
     strategy_class = strategies.get(strategy_name.lower())

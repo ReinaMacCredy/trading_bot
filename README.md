@@ -1,51 +1,32 @@
-# Discord Trading Bot
+# Discord Trading Signal Bot
 
-A Discord bot that lets you monitor cryptocurrency prices, view charts, and execute trades directly from Discord.
+A Discord bot for cryptocurrency trading signals and analysis. The bot can generate trading signals in a format similar to professional trading channels.
 
 ## Features
 
-- Get real-time cryptocurrency prices
-- View account balances
-- Generate price charts
-- Execute buy and sell orders
-- Apply trading strategies for analysis
-- Easy to use Discord commands
+- Generate and display trading signals with entry, take profit, and stop loss prices
+- Format signals with customizable parameters including ratio and status
+- Analyze cryptocurrencies using various strategies (MA Crossover, RSI, Bollinger Bands)
+- Generate price charts and strategy-specific visualizations
+- Monitor prices and execute trades (when connected to an exchange)
+- **NEW: Generate real signals based on actual Binance market data**
+- **NEW: Auto-calculate entry, TP, and SL prices based on volatility**
 
 ## Setup
 
 1. Clone this repository
-2. Create a virtual environment:
-   ```
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   ```
-3. Install the required packages:
+2. Install required dependencies:
    ```
    pip install -r requirements.txt
    ```
-4. Create a `.env` file in the root directory with the following variables:
+3. Create a `.env` file with the following variables:
    ```
    DISCORD_TOKEN=your_discord_bot_token
+   DISCORD_CHANNEL_ID=your_channel_id
    BINANCE_API_KEY=your_binance_api_key
    BINANCE_API_SECRET=your_binance_api_secret
    ```
-   
-   **Note**: If you don't create a `.env` file, the bot will prompt you to enter your Discord token when you run it.
-
-### Discord Bot Setup
-
-1. Create a Discord application at https://discord.com/developers/applications
-2. Create a bot for your application
-3. Enable the required intents (Members and Message Content)
-4. Get your bot token and add it to the `.env` file
-5. Invite your bot to your server using the OAuth2 URL generator (with `bot` scope and necessary permissions)
-
-### Binance API Setup
-
-1. Create a Binance account if you don't have one
-2. Go to API Management at https://www.binance.com/en/my/settings/api-management and create a new API key
-3. Enable trading permissions for the API key (recommended to restrict by IP)
-4. Add the API key and secret to your `.env` file
+   - Note: If you don't provide Binance API credentials, the bot will run in demo mode with simulated market data.
 
 ## Running the Bot
 
@@ -55,45 +36,116 @@ python main.py
 
 ## Available Commands
 
-### Basic Commands
-- `//price <symbol>` - Get the current price of a cryptocurrency (e.g., `//price BTC`)
-- `//balance` - View your account balance
-- `//chart <symbol> [interval] [limit]` - Generate a price chart (e.g., `//chart ETH 4h 50`)
-  - Available intervals: 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w, 1M
-  - Default interval: 1d
-  - Default limit: 30
-- `//buy <symbol> <quantity>` - Place a market buy order (e.g., `//buy BTC 0.001`)
-- `//sell <symbol> <quantity>` - Place a market sell order (e.g., `//sell BTC 0.001`)
+### Real-time Trading Signal Commands
 
-### Strategy Commands
-- `//strategies` - List all available trading strategies
-- `//analyze <strategy> <symbol> [interval]` - Analyze a symbol using a specific strategy (e.g., `//analyze rsi BTC 4h`)
-- `//strategy_chart <strategy> <symbol> [interval] [limit]` - Generate a chart with strategy indicators (e.g., `//strategy_chart bollinger_bands ETH 1d 50`)
-- `//add_strategy <strategy> <symbol> [interval]` - Add a strategy to monitor (e.g., `//add_strategy ma_crossover BTC 1h`)
-- `//remove_strategy <strategy> <symbol> [interval]` - Remove a strategy from monitoring (e.g., `//remove_strategy ma_crossover BTC 1h`)
-- `//list_strategies` - List all active monitoring strategies
+- `//generate_signal <symbol> [strategy_code] [risk_reward]`
+  - Generates a trading signal with real Binance data
+  - Example: `//generate_signal BTC SC02 2.5`
 
-### Help
-- `//help` - View all available commands
+- `//market_signals [count]`
+  - Generates trading signals for top market cap coins
+  - Example: `//market_signals 5`
 
-## Available Trading Strategies
+- `//live_signal [channel_id]`
+  - Sends a live trading signal to a specified channel
+  - Example: `//live_signal 123456789012345678`
 
-### Moving Average Crossover (ma_crossover)
-A strategy that generates buy signals when a shorter-term moving average crosses above a longer-term moving average, and sell signals when the shorter-term moving average crosses below the longer-term moving average.
+### Manual Trading Signal Commands
 
-### Relative Strength Index (rsi)
-A momentum oscillator that measures the speed and change of price movements. Traditional interpretation and usage of the RSI is that values of 70 or above indicate that a security is becoming overbought or overvalued, and values of 30 or below indicate an oversold or undervalued condition.
+- `//signal <symbol> <strategy_code> <entry_price> <tp_price> <sl_price> [ratio] [status] [imminent]`
+  - Sends a trading signal for a specific cryptocurrency
+  - Example: `//signal AAVE SC02 180.6627 181.3468 180.3207 0.19% takeprofit 1`
 
-### Bollinger Bands (bollinger_bands)
-A tool defined by a set of lines plotted two standard deviations (positively and negatively) away from a simple moving average of the security's price. It can be used to generate buy signals when the price touches the lower band and sell signals when the price touches the upper band.
+- `//sc01 <symbol> <strategy_code> <entry_price> <tp_price> <sl_price> [ratio] [status] [imminent]`
+  - Sends an SC01-style trading signal with formatting similar to the example
+  - Example: `//sc01 AAVE SC02 180.6627 181.3468 180.3207 0.19% takeprofit 1`
 
-## Security Considerations
+### Analysis Commands
 
-- Never share your API keys or Discord bot token
-- Consider using API keys with restricted permissions (read-only if you only need price data)
-- Use IP restrictions for your API keys when possible
-- Test with small amounts before executing large trades
+- `//price <symbol>`
+  - Get current price of a cryptocurrency
+  - Example: `//price BTC`
 
-## Disclaimer
+- `//chart <symbol> [interval] [limit]`
+  - Generate a price chart
+  - Example: `//chart ETH 4h 50`
 
-This bot is for educational purposes only. Use at your own risk. The creators are not responsible for any financial losses incurred through the use of this bot. 
+- `//analyze <strategy> <symbol> [interval]`
+  - Analyze a symbol using a specific strategy
+  - Example: `//analyze rsi BTC 1h`
+
+- `//strategy_chart <strategy> <symbol> [interval] [limit]`
+  - Generate a chart with strategy indicators
+  - Example: `//strategy_chart bollinger_bands ETH 4h`
+
+- `//indicator <indicator_name> <symbol> [interval] [params]`
+  - Analyze a symbol using a specific technical indicator (MACD, RSI, EMA)
+  - Example: `//indicator rsi BTC 1h 14 30 70`
+  - Available indicators: `rsi`, `macd`, `ema`
+
+- `//indicator_chart <indicator_name> <symbol> [interval] [params]`
+  - Generate a chart with technical indicator visualization
+  - Example: `//indicator_chart macd ETH 4h 12 26 9`
+
+- `//help_indicators`
+  - Show help for indicator commands and parameters
+
+### Strategy Management
+
+- `//strategies`
+  - List available trading strategies
+
+- `//add_strategy <strategy> <symbol> [interval]`
+  - Add a trading strategy to monitor
+  - Example: `//add_strategy ma_crossover BTC 1h`
+
+- `//remove_strategy <strategy> <symbol> [interval]`
+  - Remove a trading strategy
+  - Example: `//remove_strategy ma_crossover BTC 1h`
+
+- `//list_active_strategies`
+  - List all active trading strategies
+
+### Account Management
+
+- `//balance`
+  - Get your account balance
+
+- `//buy <symbol> <quantity>`
+  - Buy a cryptocurrency at market price
+  - Example: `//buy BTC 0.01`
+
+- `//sell <symbol> <quantity>`
+  - Sell a cryptocurrency at market price
+  - Example: `//sell BTC 0.01`
+
+### Utilities
+
+- `//test_connection`
+  - Test the connection to Binance API
+
+## Example Output
+
+The trading signals will appear similar to this format:
+
+```
+SC01 trading signals [Hina]
+🟢 AAVE - SC02
+Entry: 180.6627 - TP (2R): 181.3468 - SL: 180.3207
+Imminent (Sắp vào Entry): 1
+Ratio (Tỉ lệ): 0.19%
+Status (Trạng thái): takeprofit
+By Hina~
+```
+
+## Demo Mode
+
+If you don't provide Binance API credentials in the `.env` file, the bot will run in demo mode. In this mode:
+- The bot will use public Binance API endpoints for market data
+- Account-specific commands will return simulated data
+- Trading signals will still be generated with real market prices
+- No actual trades will be executed
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details. 

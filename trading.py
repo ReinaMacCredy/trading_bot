@@ -7,6 +7,7 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 import io
 from strategies import get_strategy
+from indicators import IndicatorFactory
 
 logger = logging.getLogger('trading')
 
@@ -27,16 +28,29 @@ class TradingBot:
         else:
             logger.error("Binance API Secret not found in environment variables")
         
+        # Initialize with demo mode if no API credentials
+        self.demo_mode = False
         if not api_key or not api_secret:
-            logger.error("Binance API credentials not found in environment variables")
-            raise ValueError("Binance API credentials not configured")
+            logger.warning("No Binance API credentials found. Running in demo mode.")
+            self.demo_mode = True
+            self.client = Client("", "")  # Use empty strings for demo mode
+        else:
+            self.client = Client(api_key, api_secret)
             
-        self.client = Client(api_key, api_secret)
         self.active_strategies = {}
+        self.signals = []  # Store signals
         logger.info("Trading bot initialized")
         
     def get_account_balance(self):
         """Get account balance for all assets with non-zero balance"""
+        if self.demo_mode:
+            logger.warning("Demo mode: Returning mock balance")
+            return [
+                {"asset": "BTC", "free": "0.1", "locked": "0.0"},
+                {"asset": "ETH", "free": "2.5", "locked": "0.0"},
+                {"asset": "USDT", "free": "1000.0", "locked": "0.0"}
+            ]
+            
         try:
             account_info = self.client.get_account()
             balances = account_info['balances']
@@ -104,6 +118,20 @@ class TradingBot:
     
     def place_order(self, symbol, side, quantity):
         """Place a market order"""
+        if self.demo_mode:
+            logger.warning(f"Demo mode: Simulating {side} order for {quantity} {symbol}")
+            price = self.get_price(symbol)
+            return {
+                "symbol": symbol,
+                "orderId": 12345,
+                "price": price,
+                "origQty": str(quantity),
+                "side": side,
+                "status": "FILLED",
+                "type": "MARKET",
+                "transactTime": int(datetime.now().timestamp() * 1000)
+            }
+            
         try:
             order = self.client.create_order(
                 symbol=symbol,
@@ -114,6 +142,14 @@ class TradingBot:
             return order
         except BinanceAPIException as e:
             logger.error(f"Error placing order: {e}")
+            return None
+    
+    def get_strategy(self, strategy_name, **params):
+        """Get a strategy instance with the specified parameters"""
+        try:
+            return get_strategy(strategy_name, **params)
+        except Exception as e:
+            logger.error(f"Error getting strategy {strategy_name}: {e}")
             return None
     
     def add_strategy(self, strategy_name, symbol, interval, **params):
@@ -248,7 +284,6 @@ class TradingBot:
                 plt.xlabel('Time')
                 plt.ylabel('RSI')
                 plt.legend()
-                plt.xticks(rotation=45)
             
             plt.tight_layout()
             
@@ -262,28 +297,308 @@ class TradingBot:
             logger.error(f"Error generating strategy chart: {e}")
             return None
     
-    def test_connection(self):
-        """Test Binance API connection and credentials"""
+    def get_indicator(self, indicator_name, **params):
+        """Get an indicator instance with the specified parameters"""
         try:
-            # Test API Key validity
-            status = self.client.get_system_status()
-            logger.info(f"Binance system status: {status}")
-            
-            # Ping the API
-            ping_result = self.client.ping()
-            logger.info(f"Ping result: {ping_result}")
-            
-            # Get server time
-            server_time = self.client.get_server_time()
-            logger.info(f"Server time: {server_time}")
-            
-            return True
-        except BinanceAPIException as e:
-            logger.error(f"API Error during connection test: {e}")
-            logger.error(f"Error code: {e.code}, Error message: {e.message}")
-            return False
+            return IndicatorFactory.get_indicator(indicator_name, **params)
         except Exception as e:
-            logger.error(f"Unexpected error during connection test: {str(e)}")
+            logger.error(f"Error getting indicator {indicator_name}: {e}")
+            return None
+    
+    def analyze_with_indicator(self, indicator_name, symbol, interval, limit=100, **params):
+        """Analyze a symbol using a specific indicator
+        
+        Args:
+            indicator_name (str): Name of the indicator (e.g., 'rsi', 'macd', 'ema')
+            symbol (str): Trading symbol (e.g., 'BTCUSDT')
+            interval (str): Candlestick interval (e.g., '1h', '4h', '1d')
+            limit (int): Number of data points
+            **params: Parameters for the indicator
+            
+        Returns:
+            dict: Analysis results
+        """
+        try:
+            # Get market data
+            df = self.get_market_data(symbol, interval, limit)
+            if df is None:
+                return None
+            
+            # Get indicator
+            indicator = self.get_indicator(indicator_name, **params)
+            if indicator is None:
+                return None
+            
+            # Calculate indicator values
+            indicator_data = indicator.calculate(df)
+            if indicator_data is None:
+                return None
+            
+            # Get signals
+            signals = indicator.get_signal(df)
+            if signals is None:
+                signals = {}
+                last_signal = 0
+            else:
+                last_signal = signals['signal'].iloc[-1] if 'signal' in signals else 0
+            
+            # Prepare result
+            result = {
+                "indicator": indicator_name,
+                "symbol": symbol,
+                "current_price": df['close'].iloc[-1],
+                "signal": "HOLD"
+            }
+            
+            if last_signal == 1.0:
+                result["signal"] = "BUY"
+            elif last_signal == -1.0:
+                result["signal"] = "SELL"
+            
+            # Add indicator-specific data
+            if indicator_name.lower() == 'ema':
+                result["ema"] = float(indicator_data.iloc[-1])
+            elif indicator_name.lower() == 'rsi':
+                result["rsi"] = float(indicator_data.iloc[-1])
+                result["oversold"] = indicator.oversold
+                result["overbought"] = indicator.overbought
+            elif indicator_name.lower() == 'macd':
+                result["macd"] = float(indicator_data['macd'].iloc[-1])
+                result["signal_line"] = float(indicator_data['signal_line'].iloc[-1])
+                result["histogram"] = float(indicator_data['histogram'].iloc[-1])
+            
+            return result
+        except Exception as e:
+            logger.error(f"Error analyzing with indicator: {e}")
             import traceback
             logger.error(traceback.format_exc())
-            return False 
+            return None
+    
+    def generate_indicator_chart(self, indicator_name, symbol, interval, limit=100, **params):
+        """Generate a chart with indicator visualization
+        
+        Args:
+            indicator_name (str): Name of the indicator
+            symbol (str): Trading symbol
+            interval (str): Candlestick interval
+            limit (int): Number of data points
+            **params: Parameters for the indicator
+            
+        Returns:
+            BytesIO: Chart image buffer
+        """
+        try:
+            # Get market data
+            df = self.get_market_data(symbol, interval, limit)
+            if df is None:
+                return None
+            
+            # Get indicator
+            indicator = self.get_indicator(indicator_name, **params)
+            if indicator is None:
+                return None
+            
+            # Calculate indicator values
+            indicator_data = indicator.calculate(df)
+            if indicator_data is None:
+                return None
+            
+            # Create figure with two subplots
+            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8), gridspec_kw={'height_ratios': [3, 1]})
+            
+            # Plot price on first subplot
+            ax1.plot(df['timestamp'], df['close'])
+            ax1.set_title(f"{symbol} Price Chart ({interval})")
+            ax1.set_ylabel('Price')
+            ax1.grid(True)
+            
+            # Plot indicator on second subplot
+            if indicator_name.lower() == 'ema':
+                ax2.plot(df['timestamp'], indicator_data, label=f"EMA-{indicator.period}")
+                ax2.set_title(f"EMA ({indicator.period})")
+            elif indicator_name.lower() == 'rsi':
+                ax2.plot(df['timestamp'], indicator_data, label=f"RSI-{indicator.period}")
+                ax2.axhline(y=indicator.oversold, color='g', linestyle='-', label=f"Oversold ({indicator.oversold})")
+                ax2.axhline(y=indicator.overbought, color='r', linestyle='-', label=f"Overbought ({indicator.overbought})")
+                ax2.set_title(f"RSI ({indicator.period})")
+                ax2.set_ylim(0, 100)
+            elif indicator_name.lower() == 'macd':
+                ax2.plot(df['timestamp'], indicator_data['macd'], label='MACD Line')
+                ax2.plot(df['timestamp'], indicator_data['signal_line'], label='Signal Line')
+                ax2.bar(df['timestamp'], indicator_data['histogram'], label='Histogram', alpha=0.5)
+                ax2.set_title(f"MACD ({indicator.fast_period}, {indicator.slow_period}, {indicator.signal_period})")
+            
+            ax2.set_xlabel('Time')
+            ax2.grid(True)
+            ax2.legend()
+            
+            plt.tight_layout()
+            
+            buf = io.BytesIO()
+            plt.savefig(buf, format='png')
+            buf.seek(0)
+            plt.close(fig)
+            
+            return buf
+        except Exception as e:
+            logger.error(f"Error generating indicator chart: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return None
+    
+    def test_connection(self):
+        """Test connection to Binance API"""
+        try:
+            server_time = self.client.get_server_time()
+            logger.info(f"Binance server time: {server_time}")
+            return True
+        except Exception as e:
+            logger.error(f"Error testing connection: {e}")
+            return False
+    
+    def store_signal(self, signal):
+        """Store a trading signal"""
+        # Check if this exact signal already exists
+        for existing in self.signals:
+            if (existing['symbol'] == signal['symbol'] and 
+                existing['strategy_code'] == signal['strategy_code'] and
+                existing['entry_price'] == signal['entry_price'] and
+                existing['tp_price'] == signal['tp_price'] and
+                existing['sl_price'] == signal['sl_price']):
+                logger.info(f"Signal for {signal['symbol']}-{signal['strategy_code']} already exists, not storing duplicate")
+                return False
+        
+        # Store the new signal
+        self.signals.append(signal)
+        logger.info(f"Stored signal for {signal['symbol']}-{signal['strategy_code']}")
+        return True
+    
+    def get_signals(self, symbol=None):
+        """Get stored trading signals, optionally filtered by symbol"""
+        if symbol:
+            return [s for s in self.signals if s['symbol'] == symbol]
+        return self.signals
+        
+    def calculate_tp_sl(self, symbol, strategy_code, risk_reward_ratio=2.0):
+        """
+        Calculate take profit and stop loss levels based on current market conditions
+        
+        Args:
+            symbol: Trading symbol (e.g. 'BTCUSDT')
+            strategy_code: Strategy code for reference
+            risk_reward_ratio: Risk/reward ratio (default: 2.0)
+            
+        Returns:
+            dict with entry_price, tp_price, sl_price, and ratio
+        """
+        try:
+            # Get current price and recent market data
+            current_price = float(self.get_price(symbol))
+            df = self.get_market_data(symbol, interval='4h', limit=20)
+            
+            if df is None or current_price is None:
+                logger.error(f"Failed to get data for {symbol}")
+                return None
+            
+            # Calculate average true range (ATR) for volatility
+            high_low = df['high'] - df['low']
+            high_close = abs(df['high'] - df['close'].shift())
+            low_close = abs(df['low'] - df['close'].shift())
+            
+            ranges = pd.concat([high_low, high_close, low_close], axis=1)
+            true_range = ranges.max(axis=1)
+            atr = true_range.mean()
+            
+            # Calculate stop loss and take profit based on ATR
+            sl_distance = atr * 1.5  # 1.5 times ATR for stop loss
+            tp_distance = sl_distance * risk_reward_ratio  # Risk/reward ratio for take profit
+            
+            # Round to appropriate number of decimal places based on price
+            precision = 2
+            if current_price < 1:
+                precision = 6
+            elif current_price < 10:
+                precision = 4
+            elif current_price < 100:
+                precision = 3
+                
+            # Format prices
+            entry_price = round(current_price, precision)
+            tp_price = round(current_price + tp_distance, precision)
+            sl_price = round(current_price - sl_distance, precision)
+            
+            # Calculate percentage risk (entry to stop loss)
+            risk_percentage = (entry_price - sl_price) / entry_price * 100
+            
+            return {
+                "symbol": symbol.replace("USDT", ""),
+                "strategy_code": strategy_code,
+                "entry_price": entry_price,
+                "tp_price": tp_price,
+                "sl_price": sl_price,
+                "ratio": round(risk_percentage, 2),
+                "current_price": current_price
+            }
+            
+        except Exception as e:
+            logger.error(f"Error calculating TP/SL for {symbol}: {e}")
+            return None
+            
+    def generate_trading_signal(self, symbol, strategy_code="SC01", risk_reward_ratio=2.0, author="Reina"):
+        """
+        Generate a complete trading signal for a symbol based on current market conditions
+        
+        Args:
+            symbol: Trading symbol (e.g. 'BTC')
+            strategy_code: Strategy code (e.g. 'SC01', 'SC02')
+            risk_reward_ratio: Risk/reward ratio (default: 2.0)
+            author: Author name for the signal
+            
+        Returns:
+            dict with complete signal data
+        """
+        # Ensure symbol format
+        if not symbol.endswith("USDT"):
+            symbol = f"{symbol}USDT"
+            
+        # Calculate entry, TP, and SL prices
+        levels = self.calculate_tp_sl(symbol, strategy_code, risk_reward_ratio)
+        if not levels:
+            return None
+            
+        # Create the signal
+        sc_strategy = self.get_strategy('sc_signal', version="SC01", author=author)
+        if not sc_strategy:
+            return None
+            
+        # Determine if conditions are favorable for entry
+        # Based on simple trend analysis
+        df = self.get_market_data(symbol, interval='1h', limit=24)
+        if df is None:
+            return None
+            
+        # Check if current price is near support or resistance
+        close_prices = df['close'].values
+        current = close_prices[-1]
+        
+        # Simple trend detection
+        trend_up = close_prices[-1] > close_prices[-12]
+        
+        # Status determination
+        status = "takeprofit" if trend_up else "pending"
+        
+        # Imminent entry check (if price is within 0.5% of entry)
+        current_to_entry_pct = abs(levels["current_price"] - levels["entry_price"]) / levels["entry_price"] * 100
+        imminent = 1 if current_to_entry_pct < 0.5 else 0
+        
+        # Generate complete signal
+        return sc_strategy.generate_signal(
+            symbol=levels["symbol"],
+            strategy_code=strategy_code,
+            entry_price=levels["entry_price"],
+            tp_price=levels["tp_price"],
+            sl_price=levels["sl_price"],
+            ratio=levels["ratio"],
+            status=status,
+            imminent=imminent
+        )
