@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 import io
 from strategies import get_strategy
 from indicators import IndicatorFactory
+import ccxt
+import numpy as np
 
 logger = logging.getLogger('trading')
 
@@ -34,15 +36,59 @@ class TradingBot:
             logger.warning("No Binance API credentials found. Running in demo mode.")
             self.demo_mode = True
             self.client = Client("", "")  # Use empty strings for demo mode
+            self.ccxt_client = None
         else:
             self.client = Client(api_key, api_secret)
+            # Initialize CCXT for multi-exchange support
+            try:
+                self.ccxt_client = ccxt.binance({
+                    'apiKey': api_key,
+                    'secret': api_secret,
+                    'enableRateLimit': True,  # Enable rate limiting
+                })
+                logger.info("CCXT client initialized for Binance")
+            except Exception as e:
+                logger.error(f"Failed to initialize CCXT client: {e}")
+                self.ccxt_client = None
             
         self.active_strategies = {}
         self.signals = []  # Store signals
-        logger.info("Trading bot initialized")
         
-    def get_account_balance(self):
+        # Risk management settings
+        self.max_risk_per_trade = 0.02  # 2% risk per trade
+        self.max_daily_loss = 0.05  # 5% max daily loss
+        self.trailing_stop_percent = 0.015  # 1.5% trailing stop
+        self.daily_loss_counter = 0.0  # Track daily loss
+        self.last_reset_day = datetime.now().day
+        
+        logger.info("Trading bot initialized")
+    
+    def reset_daily_loss(self):
+        """Reset daily loss counter if it's a new day"""
+        current_day = datetime.now().day
+        if current_day != self.last_reset_day:
+            self.daily_loss_counter = 0.0
+            self.last_reset_day = current_day
+            logger.info("Daily loss counter reset")
+    
+    def update_risk_parameters(self, max_risk_per_trade=None, max_daily_loss=None, trailing_stop_percent=None):
+        """Update risk management parameters"""
+        if max_risk_per_trade is not None:
+            self.max_risk_per_trade = max_risk_per_trade
+            logger.info(f"Max risk per trade updated to {max_risk_per_trade * 100}%")
+        
+        if max_daily_loss is not None:
+            self.max_daily_loss = max_daily_loss
+            logger.info(f"Max daily loss updated to {max_daily_loss * 100}%")
+        
+        if trailing_stop_percent is not None:
+            self.trailing_stop_percent = trailing_stop_percent
+            logger.info(f"Trailing stop percent updated to {trailing_stop_percent * 100}%")
+        
+    def get_account_balance(self, exchange='binance'):
         """Get account balance for all assets with non-zero balance"""
+        self.reset_daily_loss()
+        
         if self.demo_mode:
             logger.warning("Demo mode: Returning mock balance")
             return [
@@ -50,12 +96,31 @@ class TradingBot:
                 {"asset": "ETH", "free": "2.5", "locked": "0.0"},
                 {"asset": "USDT", "free": "1000.0", "locked": "0.0"}
             ]
-            
+        
         try:
-            account_info = self.client.get_account()
-            balances = account_info['balances']
-            non_zero = [b for b in balances if float(b['free']) > 0 or float(b['locked']) > 0]
-            return non_zero
+            if exchange.lower() == 'binance' and self.client:
+                account_info = self.client.get_account()
+                balances = account_info['balances']
+                non_zero = [b for b in balances if float(b['free']) > 0 or float(b['locked']) > 0]
+                return non_zero
+            elif self.ccxt_client:
+                # Use CCXT for other exchanges or as fallback
+                self.ccxt_client.load_markets()
+                balance = self.ccxt_client.fetch_balance()
+                
+                # Format to match Binance API structure
+                formatted_balances = []
+                for currency, data in balance.items():
+                    if currency not in ['info', 'free', 'used', 'total'] and (data['free'] > 0 or data['used'] > 0):
+                        formatted_balances.append({
+                            'asset': currency,
+                            'free': str(data['free']),
+                            'locked': str(data['used'])
+                        })
+                return formatted_balances
+            else:
+                logger.error(f"Exchange {exchange} not supported or client not initialized")
+                return None
         except BinanceAPIException as e:
             logger.error(f"Error getting account balance: {e}")
             logger.error(f"Error code: {e.code}, Error message: {e.message}")
@@ -66,46 +131,117 @@ class TradingBot:
             logger.error(traceback.format_exc())
             return None
     
-    def get_price(self, symbol):
+    def get_price(self, symbol, exchange='binance'):
         """Get current price for a symbol"""
         try:
-            ticker = self.client.get_symbol_ticker(symbol=symbol)
-            return ticker['price']
+            if exchange.lower() == 'binance' and self.client:
+                ticker = self.client.get_symbol_ticker(symbol=symbol)
+                return ticker['price']
+            elif self.ccxt_client:
+                # Use CCXT for other exchanges or as fallback
+                ticker = self.ccxt_client.fetch_ticker(symbol)
+                return str(ticker['last'])
+            else:
+                logger.error(f"Exchange {exchange} not supported or client not initialized")
+                return None
         except BinanceAPIException as e:
             logger.error(f"Error getting price for {symbol}: {e}")
             return None
+        except Exception as e:
+            logger.error(f"Error getting price for {symbol} via CCXT: {str(e)}")
+            return None
     
-    def get_market_data(self, symbol, interval, limit=100):
+    def get_market_data(self, symbol, interval, limit=100, exchange='binance'):
         """Get historical market data"""
         try:
-            klines = self.client.get_klines(symbol=symbol, interval=interval, limit=limit)
-            data = []
-            for k in klines:
-                data.append([
-                    datetime.fromtimestamp(k[0]/1000),  # Open time
-                    float(k[1]),  # Open
-                    float(k[2]),  # High
-                    float(k[3]),  # Low
-                    float(k[4]),  # Close
-                    float(k[5])   # Volume
-                ])
-            df = pd.DataFrame(data, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-            return df
+            if exchange.lower() == 'binance' and self.client:
+                klines = self.client.get_klines(symbol=symbol, interval=interval, limit=limit)
+                data = []
+                for k in klines:
+                    data.append([
+                        datetime.fromtimestamp(k[0]/1000),  # Open time
+                        float(k[1]),  # Open
+                        float(k[2]),  # High
+                        float(k[3]),  # Low
+                        float(k[4]),  # Close
+                        float(k[5])   # Volume
+                    ])
+                df = pd.DataFrame(data, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+                return df
+            elif self.ccxt_client:
+                # Map interval to CCXT timeframe format
+                timeframe_map = {
+                    '1m': '1m', '3m': '3m', '5m': '5m', '15m': '15m', '30m': '30m',
+                    '1h': '1h', '2h': '2h', '4h': '4h', '6h': '6h', '8h': '8h', '12h': '12h',
+                    '1d': '1d', '3d': '3d', '1w': '1w', '1M': '1M'
+                }
+                timeframe = timeframe_map.get(interval, '1h')
+                ohlcv = self.ccxt_client.fetch_ohlcv(symbol, timeframe, limit=limit)
+                
+                data = []
+                for k in ohlcv:
+                    data.append([
+                        datetime.fromtimestamp(k[0]/1000),  # Open time
+                        float(k[1]),  # Open
+                        float(k[2]),  # High
+                        float(k[3]),  # Low
+                        float(k[4]),  # Close
+                        float(k[5])   # Volume
+                    ])
+                df = pd.DataFrame(data, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+                return df
+            else:
+                logger.error(f"Exchange {exchange} not supported or client not initialized")
+                return None
         except BinanceAPIException as e:
             logger.error(f"Error getting market data for {symbol}: {e}")
             return None
+        except Exception as e:
+            logger.error(f"Error getting market data for {symbol} via CCXT: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return None
     
-    def generate_chart(self, symbol, interval, limit=100):
+    def generate_chart(self, symbol, interval, limit=100, with_indicators=False, exchange='binance'):
         """Generate a price chart for a symbol"""
-        df = self.get_market_data(symbol, interval, limit)
+        df = self.get_market_data(symbol, interval, limit, exchange)
         if df is None:
             return None
         
-        plt.figure(figsize=(10, 5))
-        plt.plot(df['timestamp'], df['close'])
-        plt.title(f"{symbol} Price Chart ({interval})")
-        plt.xlabel('Time')
-        plt.ylabel('Price')
+        plt.figure(figsize=(12, 8))
+        
+        # Plot price
+        ax1 = plt.subplot(2, 1, 1)
+        ax1.plot(df['timestamp'], df['close'], label='Price')
+        ax1.set_title(f"{symbol} Price Chart ({interval})")
+        
+        # Add EMA if requested
+        if with_indicators:
+            ema20 = df['close'].ewm(span=20, adjust=False).mean()
+            ema50 = df['close'].ewm(span=50, adjust=False).mean()
+            ema200 = df['close'].ewm(span=200, adjust=False).mean()
+            
+            ax1.plot(df['timestamp'], ema20, label='EMA 20', linestyle='--')
+            ax1.plot(df['timestamp'], ema50, label='EMA 50', linestyle='-.')
+            ax1.plot(df['timestamp'], ema200, label='EMA 200', linestyle=':')
+            
+            # Calculate RSI
+            factory = IndicatorFactory()
+            rsi_indicator = factory.get_indicator('rsi', period=14)
+            rsi_values = rsi_indicator.calculate(df)
+            
+            # Plot RSI in the second subplot
+            ax2 = plt.subplot(2, 1, 2, sharex=ax1)
+            ax2.plot(df['timestamp'], rsi_values, label='RSI', color='purple')
+            ax2.axhline(y=70, color='r', linestyle='-', alpha=0.3)
+            ax2.axhline(y=30, color='g', linestyle='-', alpha=0.3)
+            ax2.set_title('RSI (14)')
+            ax2.set_ylim(0, 100)
+            ax2.legend()
+        
+        ax1.legend()
+        ax1.set_xlabel('Time')
+        ax1.set_ylabel('Price')
         plt.xticks(rotation=45)
         plt.tight_layout()
         
@@ -116,33 +252,206 @@ class TradingBot:
         
         return buf
     
-    def place_order(self, symbol, side, quantity):
-        """Place a market order"""
+    def calculate_position_size(self, symbol, stop_loss_price, account_balance=None, exchange='binance'):
+        """Calculate position size based on risk management rules
+        
+        Args:
+            symbol: Trading symbol
+            stop_loss_price: Stop loss price
+            account_balance: Optional account balance, if not provided will be fetched
+            
+        Returns:
+            float: The position size to trade
+        """
+        # Get current price
+        current_price = float(self.get_price(symbol, exchange))
+        if not current_price:
+            logger.error(f"Failed to get current price for {symbol}")
+            return 0.0
+        
+        # Get account balance if not provided
+        if not account_balance:
+            balances = self.get_account_balance(exchange)
+            if not balances:
+                logger.error("Failed to get account balance")
+                return 0.0
+                
+            # Find USDT balance or the quote asset in the symbol
+            quote_asset = symbol[-4:] if symbol.endswith('USDT') else symbol[-3:]
+            account_balance = 0
+            for balance in balances:
+                if balance['asset'] == quote_asset:
+                    account_balance = float(balance['free'])
+                    break
+                    
+            if account_balance == 0:
+                logger.warning(f"No balance found for {quote_asset}, assuming demo mode")
+                account_balance = 1000.0  # Demo value
+        
+        # Check if daily loss limit is reached
+        if self.daily_loss_counter >= self.max_daily_loss * account_balance:
+            logger.warning("Daily loss limit reached, no new trades allowed")
+            return 0.0
+            
+        # Calculate risk amount
+        risk_amount = account_balance * self.max_risk_per_trade
+        
+        # Calculate position size
+        stop_loss_pct = abs(current_price - float(stop_loss_price)) / current_price
+        if stop_loss_pct <= 0.0001:  # Prevent division by near-zero
+            logger.warning("Stop loss too close to entry price, using default 1% risk")
+            stop_loss_pct = 0.01
+        
+        position_size = risk_amount / (current_price * stop_loss_pct)
+        
+        logger.info(f"Calculated position size for {symbol}: {position_size:.6f} units")
+        return position_size
+    
+    def place_order(self, symbol, side, quantity, order_type='MARKET', price=None, stop_price=None, exchange='binance'):
+        """Place an order"""
         if self.demo_mode:
-            logger.warning(f"Demo mode: Simulating {side} order for {quantity} {symbol}")
-            price = self.get_price(symbol)
+            logger.warning(f"Demo mode: Simulating {side} {order_type} order for {quantity} {symbol}")
+            current_price = self.get_price(symbol)
+            order_price = price if price else current_price
             return {
                 "symbol": symbol,
                 "orderId": 12345,
-                "price": price,
+                "price": order_price,
                 "origQty": str(quantity),
                 "side": side,
                 "status": "FILLED",
-                "type": "MARKET",
+                "type": order_type,
                 "transactTime": int(datetime.now().timestamp() * 1000)
             }
             
         try:
-            order = self.client.create_order(
-                symbol=symbol,
-                side=side,
-                type='MARKET',
-                quantity=quantity
-            )
-            return order
+            if exchange.lower() == 'binance' and self.client:
+                if order_type == 'MARKET':
+                    order = self.client.create_order(
+                        symbol=symbol,
+                        side=side,
+                        type=order_type,
+                        quantity=quantity
+                    )
+                elif order_type == 'LIMIT':
+                    if not price:
+                        logger.error("Price must be specified for LIMIT orders")
+                        return None
+                    order = self.client.create_order(
+                        symbol=symbol,
+                        side=side,
+                        type=order_type,
+                        timeInForce='GTC',
+                        quantity=quantity,
+                        price=price
+                    )
+                elif order_type == 'STOP_LOSS':
+                    if not stop_price:
+                        logger.error("Stop price must be specified for STOP_LOSS orders")
+                        return None
+                    order = self.client.create_order(
+                        symbol=symbol,
+                        side=side,
+                        type=order_type,
+                        quantity=quantity,
+                        stopPrice=stop_price
+                    )
+                return order
+            elif self.ccxt_client:
+                # Map parameters to CCXT format
+                if order_type == 'MARKET':
+                    order = self.ccxt_client.create_order(
+                        symbol=symbol,
+                        type='market',
+                        side=side.lower(),
+                        amount=quantity
+                    )
+                elif order_type == 'LIMIT':
+                    if not price:
+                        logger.error("Price must be specified for LIMIT orders")
+                        return None
+                    order = self.ccxt_client.create_order(
+                        symbol=symbol,
+                        type='limit',
+                        side=side.lower(),
+                        amount=quantity,
+                        price=price
+                    )
+                elif order_type == 'STOP_LOSS':
+                    if not stop_price:
+                        logger.error("Stop price must be specified for STOP_LOSS orders")
+                        return None
+                    # CCXT stop loss varies by exchange, here's a common approach
+                    order = self.ccxt_client.create_order(
+                        symbol=symbol,
+                        type='stop',
+                        side=side.lower(),
+                        amount=quantity,
+                        price=stop_price
+                    )
+                return order
+            else:
+                logger.error(f"Exchange {exchange} not supported or client not initialized")
+                return None
         except BinanceAPIException as e:
             logger.error(f"Error placing order: {e}")
             return None
+        except Exception as e:
+            logger.error(f"Error placing order via CCXT: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return None
+    
+    def place_advanced_order(self, symbol, side, quantity, take_profit=None, stop_loss=None, exchange='binance'):
+        """Place an order with take profit and stop loss"""
+        # Place the main order
+        main_order = self.place_order(symbol, side, quantity, exchange=exchange)
+        if not main_order:
+            logger.error(f"Failed to place main order for {symbol}")
+            return None
+        
+        orders = [main_order]
+        
+        try:
+            # Calculate opposite side
+            opposite_side = 'SELL' if side == 'BUY' else 'BUY'
+            
+            # Place take profit order if specified
+            if take_profit:
+                tp_order = self.place_order(
+                    symbol=symbol,
+                    side=opposite_side,
+                    quantity=quantity,
+                    order_type='LIMIT',
+                    price=take_profit,
+                    exchange=exchange
+                )
+                if tp_order:
+                    orders.append(tp_order)
+                    logger.info(f"Take profit order placed for {symbol} at {take_profit}")
+                else:
+                    logger.error(f"Failed to place take profit order for {symbol}")
+            
+            # Place stop loss order if specified
+            if stop_loss:
+                sl_order = self.place_order(
+                    symbol=symbol,
+                    side=opposite_side,
+                    quantity=quantity,
+                    order_type='STOP_LOSS',
+                    stop_price=stop_loss,
+                    exchange=exchange
+                )
+                if sl_order:
+                    orders.append(sl_order)
+                    logger.info(f"Stop loss order placed for {symbol} at {stop_loss}")
+                else:
+                    logger.error(f"Failed to place stop loss order for {symbol}")
+            
+            return orders
+        except Exception as e:
+            logger.error(f"Error placing advanced order: {str(e)}")
+            return [main_order]  # Return at least the main order
     
     def get_strategy(self, strategy_name, **params):
         """Get a strategy instance with the specified parameters"""

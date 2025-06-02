@@ -11,6 +11,7 @@ from trading import TradingBot
 from bot import create_signal_embed  # Only import the create_signal_embed function, not the TradingSignalBot
 from datetime import datetime
 import random
+import ccxt
 
 # Configure logging
 logging.basicConfig(
@@ -1065,6 +1066,240 @@ async def live_signal(ctx, channel_id: str = None):
     finally:
         # Always clear the command running status
         clear_command_running(ctx.author.id, 'live_signal')
+
+@bot.command(name='risk_settings')
+async def update_risk_settings(ctx, risk_per_trade: float = None, max_daily_loss: float = None, trailing_stop: float = None):
+    """Update risk management settings
+    
+    Parameters:
+    - risk_per_trade: Risk per trade as percentage (e.g., 2 for 2%)
+    - max_daily_loss: Maximum daily loss as percentage (e.g., 5 for 5%)
+    - trailing_stop: Trailing stop percentage (e.g., 1.5 for 1.5%)
+    """
+    if not trading_bot:
+        await ctx.send("Trading bot is not initialized. Check logs for details.")
+        return
+    
+    # Convert percentages to decimals
+    if risk_per_trade is not None:
+        risk_per_trade = risk_per_trade / 100
+    if max_daily_loss is not None:
+        max_daily_loss = max_daily_loss / 100
+    if trailing_stop is not None:
+        trailing_stop = trailing_stop / 100
+    
+    # Update risk parameters
+    trading_bot.update_risk_parameters(
+        max_risk_per_trade=risk_per_trade,
+        max_daily_loss=max_daily_loss,
+        trailing_stop_percent=trailing_stop
+    )
+    
+    # Prepare response message
+    response = "Risk settings updated:\n"
+    if risk_per_trade is not None:
+        response += f"• Risk per trade: {risk_per_trade * 100}%\n"
+    if max_daily_loss is not None:
+        response += f"• Max daily loss: {max_daily_loss * 100}%\n"
+    if trailing_stop is not None:
+        response += f"• Trailing stop: {trailing_stop * 100}%\n"
+    
+    await ctx.send(response)
+
+@bot.command(name='position_size')
+async def calculate_position_size(ctx, symbol: str, entry_price: float, stop_loss: float):
+    """Calculate the optimal position size based on risk management
+    
+    Parameters:
+    - symbol: The cryptocurrency symbol (e.g., BTC, ETH)
+    - entry_price: The planned entry price
+    - stop_loss: The stop loss price
+    """
+    if not trading_bot:
+        await ctx.send("Trading bot is not initialized. Check logs for details.")
+        return
+    
+    symbol = symbol.upper()
+    if not symbol.endswith('USDT'):
+        symbol = f"{symbol}USDT"
+    
+    position_size = trading_bot.calculate_position_size(symbol, stop_loss)
+    
+    if position_size > 0:
+        current_price = trading_bot.get_price(symbol)
+        risk_amount = abs(float(current_price) - stop_loss) * position_size
+        
+        await ctx.send(f"**Position Size Calculation for {symbol}**\n"
+                      f"• Entry Price: {entry_price}\n"
+                      f"• Stop Loss: {stop_loss}\n"
+                      f"• Current Price: {current_price}\n"
+                      f"• Position Size: {position_size:.6f} units\n"
+                      f"• Risk Amount: ${risk_amount:.2f} USDT\n"
+                      f"• Risk per Trade: {trading_bot.max_risk_per_trade * 100:.1f}%")
+    else:
+        await ctx.send(f"Failed to calculate position size for {symbol}. Check if daily loss limit has been reached.")
+
+@bot.command(name='advanced_buy')
+async def advanced_buy(ctx, symbol: str, quantity: float, take_profit: float = None, stop_loss: float = None):
+    """Buy a cryptocurrency with take profit and stop loss orders
+    
+    Parameters:
+    - symbol: The cryptocurrency symbol (e.g., BTC, ETH)
+    - quantity: Amount to buy
+    - take_profit: Optional take profit price
+    - stop_loss: Optional stop loss price
+    """
+    if not trading_bot:
+        await ctx.send("Trading bot is not initialized. Check logs for details.")
+        return
+    
+    symbol = symbol.upper()
+    if not symbol.endswith('USDT'):
+        symbol = f"{symbol}USDT"
+    
+    await ctx.send(f"Placing advanced buy order for {quantity} {symbol}...")
+    
+    orders = trading_bot.place_advanced_order(symbol, 'BUY', quantity, take_profit, stop_loss)
+    
+    if orders and len(orders) > 0:
+        main_order = orders[0]
+        response = f"**Order placed successfully**\n"
+        response += f"• Symbol: {symbol}\n"
+        response += f"• Quantity: {quantity}\n"
+        response += f"• Type: {main_order['type']}\n"
+        response += f"• Status: {main_order['status']}\n"
+        
+        if len(orders) > 1:
+            response += f"• Take Profit/Stop Loss orders: {len(orders) - 1} placed\n"
+        
+        await ctx.send(response)
+    else:
+        await ctx.send(f"Failed to place order for {symbol}.")
+
+@bot.command(name='dual_macd_rsi')
+async def dual_macd_rsi(ctx, symbol: str, interval: str = '1h', higher_tf: str = '4h'):
+    """Analyze a symbol using dual timeframe MACD+RSI strategy
+    
+    Parameters:
+    - symbol: The cryptocurrency symbol (e.g., BTC, ETH)
+    - interval: Time interval for analysis (default: 1h)
+    - higher_tf: Higher timeframe for confirmation (default: 4h)
+    """
+    if not trading_bot:
+        await ctx.send("Trading bot is not initialized. Check logs for details.")
+        return
+    
+    symbol = symbol.upper()
+    if not symbol.endswith('USDT'):
+        symbol = f"{symbol}USDT"
+    
+    valid_intervals = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w', '1M']
+    if interval not in valid_intervals or higher_tf not in valid_intervals:
+        await ctx.send(f"Invalid interval. Please use one of: {', '.join(valid_intervals)}")
+        return
+    
+    await ctx.send(f"Analyzing {symbol} with dual timeframe MACD+RSI strategy ({interval} + {higher_tf})...")
+    
+    try:
+        # Get data for both timeframes
+        df = trading_bot.get_market_data(symbol, interval, limit=100)
+        higher_tf_data = trading_bot.get_market_data(symbol, higher_tf, limit=100)
+        
+        if df is None or higher_tf_data is None:
+            await ctx.send(f"Failed to get market data for {symbol}.")
+            return
+        
+        # Get the indicator
+        factory = IndicatorFactory()
+        indicator = factory.get_indicator('dual_macd_rsi')
+        
+        # Run analysis
+        result = indicator.get_signal(df, higher_tf_data)
+        
+        if result is None:
+            await ctx.send(f"Failed to analyze {symbol} with dual timeframe strategy.")
+            return
+        
+        # Get the latest signal
+        latest = result.iloc[-1]
+        signal_value = latest['signal']
+        
+        # Prepare response
+        response = f"**Dual Timeframe MACD+RSI Analysis for {symbol}**\n"
+        response += f"• Timeframes: {interval} + {higher_tf}\n"
+        response += f"• RSI: {latest['rsi']:.2f}\n"
+        response += f"• MACD: {latest['macd']:.6f}\n"
+        response += f"• Signal Line: {latest['signal_line']:.6f}\n"
+        response += f"• Histogram: {latest['histogram']:.6f}\n"
+        
+        if signal_value == 1.0:
+            response += f"• **Signal: BUY** 🟢\n"
+            
+            # Calculate entry, take profit and stop loss
+            current_price = float(trading_bot.get_price(symbol))
+            atr = df['high'].rolling(14).max() - df['low'].rolling(14).min()
+            last_atr = atr.iloc[-1]
+            
+            stop_loss = current_price - (last_atr * 1.5)
+            take_profit = current_price + (last_atr * 3.0)
+            
+            response += f"• Entry: {current_price:.4f}\n"
+            response += f"• Take Profit: {take_profit:.4f}\n"
+            response += f"• Stop Loss: {stop_loss:.4f}\n"
+            response += f"• Risk/Reward: 1:2\n"
+            
+        elif signal_value == -1.0:
+            response += f"• **Signal: SELL** 🔴\n"
+        else:
+            response += f"• **Signal: NEUTRAL** ⚪\n"
+            
+        await ctx.send(response)
+        
+        # Generate chart with indicators
+        chart_data = trading_bot.generate_chart(symbol, interval, limit=100, with_indicators=True)
+        if chart_data:
+            await ctx.send(file=File(chart_data, filename=f"{symbol}_{interval}_analysis.png"))
+            
+    except Exception as e:
+        logger.error(f"Error in dual_macd_rsi command: {str(e)}")
+        await ctx.send(f"An error occurred while analyzing {symbol}: {str(e)}")
+
+@bot.command(name='exchanges')
+async def list_exchanges(ctx):
+    """List all available exchanges through CCXT"""
+    try:
+        # Get all exchange IDs from CCXT
+        exchange_ids = ccxt.exchanges
+        
+        # Format the response
+        response = "**Available Exchanges**\n"
+        
+        # Group exchanges by starting letter for cleaner output
+        grouped = {}
+        for ex_id in sorted(exchange_ids):
+            first_letter = ex_id[0].upper()
+            if first_letter not in grouped:
+                grouped[first_letter] = []
+            grouped[first_letter].append(ex_id)
+        
+        # Format the output
+        for letter, exchanges in grouped.items():
+            response += f"\n**{letter}**\n"
+            # Create chunks of exchanges for better formatting
+            chunks = [exchanges[i:i + 5] for i in range(0, len(exchanges), 5)]
+            for chunk in chunks:
+                response += "• " + ", ".join(chunk) + "\n"
+        
+        # Send the response in chunks if needed to avoid Discord's character limit
+        if len(response) > 2000:
+            parts = [response[i:i + 1900] for i in range(0, len(response), 1900)]
+            for part in parts:
+                await ctx.send(part)
+        else:
+            await ctx.send(response)
+    except Exception as e:
+        logger.error(f"Error in list_exchanges command: {str(e)}")
+        await ctx.send(f"An error occurred while listing exchanges: {str(e)}")
 
 def run_bot():
     """Run the Discord bot"""

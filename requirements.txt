@@ -4,3 +4,6 @@ requests
 python-binance
 pandas
 matplotlib
+ccxt
+pandas-ta
+numpy

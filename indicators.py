@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import logging
+import pandas_ta as ta
 
 logger = logging.getLogger('indicators')
 
@@ -62,7 +63,8 @@ class EMAIndicator(Indicator):
             logger.warning(f"Not enough data for {self.name}. Need at least {self.period} data points.")
             return None
             
-        return prices.ewm(span=self.period, adjust=False).mean()
+        # Using pandas_ta for more reliable EMA calculation
+        return ta.ema(prices, length=self.period)
     
     def get_signal(self, data, fast_period=12, slow_period=26):
         """Generate signals based on EMA crossover
@@ -87,9 +89,9 @@ class EMAIndicator(Indicator):
             logger.warning(f"Not enough data for EMA crossover. Need at least {max(fast_period, slow_period)} data points.")
             return None
         
-        # Calculate fast and slow EMAs
-        fast_ema = prices.ewm(span=fast_period, adjust=False).mean()
-        slow_ema = prices.ewm(span=slow_period, adjust=False).mean()
+        # Calculate fast and slow EMAs using pandas_ta
+        fast_ema = ta.ema(prices, length=fast_period)
+        slow_ema = ta.ema(prices, length=slow_period)
         
         # Create result DataFrame
         result = pd.DataFrame(index=prices.index)
@@ -134,22 +136,8 @@ class RSIIndicator(Indicator):
             logger.warning(f"Not enough data for {self.name}. Need at least {self.period} data points.")
             return None
         
-        # Calculate price changes
-        delta = prices.diff()
-        
-        # Separate gains and losses
-        gains = delta.clip(lower=0)
-        losses = -1 * delta.clip(upper=0)
-        
-        # Calculate average gains and losses
-        avg_gains = gains.ewm(com=self.period-1, adjust=False).mean()
-        avg_losses = losses.ewm(com=self.period-1, adjust=False).mean()
-        
-        # Calculate RS and RSI
-        rs = avg_gains / avg_losses
-        rsi = 100 - (100 / (1 + rs))
-        
-        return rsi
+        # Use pandas_ta for more reliable RSI calculation
+        return ta.rsi(prices, length=self.period)
     
     def get_signal(self, data):
         """Generate signals based on RSI values
@@ -214,24 +202,14 @@ class MACDIndicator(Indicator):
             logger.warning(f"Not enough data for {self.name}. Need at least {self.slow_period + self.signal_period} data points.")
             return None
         
-        # Calculate fast and slow EMAs
-        fast_ema = prices.ewm(span=self.fast_period, adjust=False).mean()
-        slow_ema = prices.ewm(span=self.slow_period, adjust=False).mean()
-        
-        # Calculate MACD line
-        macd_line = fast_ema - slow_ema
-        
-        # Calculate signal line
-        signal_line = macd_line.ewm(span=self.signal_period, adjust=False).mean()
-        
-        # Calculate histogram
-        histogram = macd_line - signal_line
+        # Use pandas_ta for more reliable MACD calculation
+        macd = ta.macd(prices, fast=self.fast_period, slow=self.slow_period, signal=self.signal_period)
         
         # Create result DataFrame
         result = pd.DataFrame(index=prices.index)
-        result['macd'] = macd_line
-        result['signal_line'] = signal_line
-        result['histogram'] = histogram
+        result['macd'] = macd['MACD_' + str(self.fast_period) + '_' + str(self.slow_period) + '_' + str(self.signal_period)]
+        result['signal_line'] = macd['MACDs_' + str(self.fast_period) + '_' + str(self.slow_period) + '_' + str(self.signal_period)]
+        result['histogram'] = macd['MACDh_' + str(self.fast_period) + '_' + str(self.slow_period) + '_' + str(self.signal_period)]
         
         return result
     
@@ -259,40 +237,153 @@ class MACDIndicator(Indicator):
         # Generate signals
         macd_data['signal'] = 0.0
         
-        # Buy signal: MACD line crosses above signal line
+        # Buy when MACD line crosses above signal line
         macd_data['signal'] = np.where(
             (macd_data['macd'] > macd_data['signal_line']) & 
             (macd_data['macd'].shift(1) <= macd_data['signal_line'].shift(1)),
-            1.0, 0.0
-        )
+            1.0, 0.0)
         
-        # Sell signal: MACD line crosses below signal line
+        # Sell when MACD line crosses below signal line
         macd_data['signal'] = np.where(
             (macd_data['macd'] < macd_data['signal_line']) & 
             (macd_data['macd'].shift(1) >= macd_data['signal_line'].shift(1)),
-            -1.0, macd_data['signal']
-        )
+            -1.0, macd_data['signal'])
         
         return macd_data
 
+class DualMACD_RSI_Strategy(Indicator):
+    """Combined MACD and RSI strategy with dual timeframe confirmation"""
+    
+    def __init__(self, rsi_period=14, fast_period=12, slow_period=26, signal_period=9, oversold=30, overbought=70):
+        super().__init__(f"DualMACD_RSI")
+        self.rsi_period = rsi_period
+        self.fast_period = fast_period
+        self.slow_period = slow_period
+        self.signal_period = signal_period
+        self.oversold = oversold
+        self.overbought = overbought
+        logger.info(f"Initialized {self.name} with RSI period={rsi_period}, MACD parameters={fast_period}-{slow_period}-{signal_period}")
+    
+    def calculate(self, data):
+        """Calculate MACD and RSI values
+        
+        Args:
+            data (pandas.DataFrame): Price data with 'close' column
+            
+        Returns:
+            pandas.DataFrame: DataFrame with MACD and RSI values
+        """
+        if 'close' not in data.columns:
+            logger.error("DataFrame must contain 'close' column")
+            return None
+            
+        prices = data['close']
+        
+        if len(prices) < max(self.slow_period + self.signal_period, self.rsi_period):
+            logger.warning(f"Not enough data for {self.name}. Need at least {max(self.slow_period + self.signal_period, self.rsi_period)} data points.")
+            return None
+        
+        # Calculate RSI
+        rsi = ta.rsi(prices, length=self.rsi_period)
+        
+        # Calculate MACD
+        macd = ta.macd(prices, fast=self.fast_period, slow=self.slow_period, signal=self.signal_period)
+        
+        # Create result DataFrame
+        result = pd.DataFrame(index=prices.index)
+        result['rsi'] = rsi
+        result['macd'] = macd['MACD_' + str(self.fast_period) + '_' + str(self.slow_period) + '_' + str(self.signal_period)]
+        result['signal_line'] = macd['MACDs_' + str(self.fast_period) + '_' + str(self.slow_period) + '_' + str(self.signal_period)]
+        result['histogram'] = macd['MACDh_' + str(self.fast_period) + '_' + str(self.slow_period) + '_' + str(self.signal_period)]
+        
+        return result
+    
+    def get_signal(self, data, higher_tf_data=None):
+        """Generate signals based on MACD and RSI values with dual timeframe confirmation
+        
+        Args:
+            data (pandas.DataFrame): Price data with 'close' column (current timeframe)
+            higher_tf_data (pandas.DataFrame): Optional higher timeframe data for confirmation
+            
+        Returns:
+            pandas.DataFrame: DataFrame with signals and indicator values
+        """
+        if 'close' not in data.columns:
+            logger.error("DataFrame must contain 'close' column")
+            return None
+            
+        # Calculate indicators for current timeframe
+        result = self.calculate(data)
+        if result is None:
+            return None
+            
+        # Generate base signals
+        result['signal'] = 0.0
+        
+        # Buy conditions:
+        # 1. RSI is oversold
+        # 2. MACD line crosses above signal line
+        buy_condition = (
+            (result['rsi'] < self.oversold) &
+            (result['macd'] > result['signal_line']) &
+            (result['macd'].shift(1) <= result['signal_line'].shift(1))
+        )
+        
+        # Sell conditions:
+        # 1. RSI is overbought
+        # 2. MACD line crosses below signal line
+        sell_condition = (
+            (result['rsi'] > self.overbought) &
+            (result['macd'] < result['signal_line']) &
+            (result['macd'].shift(1) >= result['signal_line'].shift(1))
+        )
+        
+        # Apply signals
+        result['signal'] = np.where(buy_condition, 1.0, result['signal'])
+        result['signal'] = np.where(sell_condition, -1.0, result['signal'])
+        
+        # Apply higher timeframe confirmation if provided
+        if higher_tf_data is not None and 'close' in higher_tf_data.columns:
+            higher_tf_indicators = self.calculate(higher_tf_data)
+            
+            if higher_tf_indicators is not None:
+                # Only keep buy signals if higher timeframe MACD is also positive
+                higher_tf_trend = higher_tf_indicators['macd'] > higher_tf_indicators['signal_line']
+                
+                # Map higher timeframe trend to current timeframe
+                # This is simplified - in practice, you'd need proper timestamp alignment
+                result['higher_tf_trend'] = np.nan
+                
+                # Simple approach: Use the latest higher timeframe signal for all current timeframe candles
+                latest_trend = higher_tf_trend.iloc[-1] if len(higher_tf_trend) > 0 else False
+                result['higher_tf_trend'] = latest_trend
+                
+                # Filter signals based on higher timeframe trend
+                result['signal'] = np.where(
+                    (result['signal'] == 1.0) & ~result['higher_tf_trend'],
+                    0.0,  # Filter out buy signals against higher timeframe trend
+                    result['signal']
+                )
+                
+                result['signal'] = np.where(
+                    (result['signal'] == -1.0) & result['higher_tf_trend'],
+                    0.0,  # Filter out sell signals against higher timeframe trend
+                    result['signal']
+                )
+        
+        return result
+
 class IndicatorFactory:
-    """Factory class for creating technical indicators"""
+    """Factory class to create indicator instances"""
     
     @staticmethod
     def get_indicator(indicator_name, **params):
-        """Create an indicator instance by name
-        
-        Args:
-            indicator_name (str): Name of the indicator
-            **params: Parameters for the indicator
-            
-        Returns:
-            Indicator: Instance of the requested indicator
-        """
+        """Get an indicator instance by name"""
         indicators = {
             'ema': EMAIndicator,
             'rsi': RSIIndicator,
-            'macd': MACDIndicator
+            'macd': MACDIndicator,
+            'dual_macd_rsi': DualMACD_RSI_Strategy
         }
         
         indicator_class = indicators.get(indicator_name.lower())

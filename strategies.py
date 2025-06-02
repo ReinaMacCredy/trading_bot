@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import logging
+import pandas_ta as ta
 
 logger = logging.getLogger('strategies')
 
@@ -63,16 +64,7 @@ class RSIStrategy(TradingStrategy):
         
     def calculate_rsi(self, data):
         """Calculate RSI indicator"""
-        delta = data.diff()
-        up = delta.clip(lower=0)
-        down = -1 * delta.clip(upper=0)
-        
-        ema_up = up.ewm(com=self.window-1, adjust=False).mean()
-        ema_down = down.ewm(com=self.window-1, adjust=False).mean()
-        
-        rs = ema_up / ema_down
-        rsi = 100 - (100 / (1 + rs))
-        return rsi
+        return ta.rsi(data, length=self.window)
         
     def analyze(self, data):
         """
@@ -127,10 +119,10 @@ class BollingerBandsStrategy(TradingStrategy):
         signals = data.copy()
         
         # Calculate Bollinger Bands
-        signals['sma'] = signals['close'].rolling(window=self.window, min_periods=1).mean()
-        signals['std'] = signals['close'].rolling(window=self.window, min_periods=1).std()
-        signals['upper_band'] = signals['sma'] + (signals['std'] * self.num_std)
-        signals['lower_band'] = signals['sma'] - (signals['std'] * self.num_std)
+        bbands = ta.bbands(signals['close'], length=self.window, std=self.num_std)
+        signals['sma'] = bbands['BBM_' + str(self.window) + '_' + str(self.num_std) + '.0']
+        signals['upper_band'] = bbands['BBU_' + str(self.window) + '_' + str(self.num_std) + '.0']
+        signals['lower_band'] = bbands['BBL_' + str(self.window) + '_' + str(self.num_std) + '.0']
         
         # Generate signals
         signals['signal'] = 0.0
@@ -138,6 +130,114 @@ class BollingerBandsStrategy(TradingStrategy):
         signals['signal'] = np.where(signals['close'] > signals['upper_band'], -1.0, signals['signal'])  # Sell when price above upper band
         
         return signals
+
+class MACDRSIStrategy(TradingStrategy):
+    """Combined MACD and RSI strategy with dual timeframe confirmation"""
+    
+    def __init__(self, rsi_period=14, fast_period=12, slow_period=26, signal_period=9, 
+                 oversold=30, overbought=70, use_higher_timeframe=True):
+        super().__init__("MACD+RSI Dual Timeframe")
+        self.rsi_period = rsi_period
+        self.fast_period = fast_period
+        self.slow_period = slow_period
+        self.signal_period = signal_period
+        self.oversold = oversold
+        self.overbought = overbought
+        self.use_higher_timeframe = use_higher_timeframe
+        logger.info(f"Initialized {self.name} strategy with RSI period={rsi_period}, MACD parameters={fast_period}-{slow_period}-{signal_period}")
+    
+    def calculate_indicators(self, data):
+        """Calculate MACD and RSI values for a dataframe
+        
+        Args:
+            data (DataFrame): Price data with 'close' column
+            
+        Returns:
+            DataFrame: DataFrame with indicator values added
+        """
+        if 'close' not in data.columns:
+            logger.error("DataFrame must contain 'close' column")
+            return None
+            
+        if len(data) < max(self.slow_period + self.signal_period, self.rsi_period):
+            logger.warning(f"Not enough data for {self.name}. Need at least {max(self.slow_period + self.signal_period, self.rsi_period)} data points.")
+            return None
+            
+        result = data.copy()
+        
+        # Calculate RSI using pandas-ta
+        result['rsi'] = ta.rsi(result['close'], length=self.rsi_period)
+        
+        # Calculate MACD using pandas-ta
+        macd = ta.macd(result['close'], fast=self.fast_period, slow=self.slow_period, signal=self.signal_period)
+        
+        # Add MACD columns to result
+        result['macd'] = macd['MACD_' + str(self.fast_period) + '_' + str(self.slow_period) + '_' + str(self.signal_period)]
+        result['signal_line'] = macd['MACDs_' + str(self.fast_period) + '_' + str(self.slow_period) + '_' + str(self.signal_period)]
+        result['histogram'] = macd['MACDh_' + str(self.fast_period) + '_' + str(self.slow_period) + '_' + str(self.signal_period)]
+        
+        return result
+    
+    def analyze(self, data, higher_tf_data=None):
+        """
+        Generate trading signals based on MACD and RSI with dual timeframe confirmation
+        
+        Args:
+            data (DataFrame): Main timeframe price data
+            higher_tf_data (DataFrame): Optional higher timeframe data for confirmation
+            
+        Returns:
+            DataFrame with indicator values and signals
+        """
+        # Calculate indicators for current timeframe
+        result = self.calculate_indicators(data)
+        if result is None:
+            return None
+            
+        # Generate base signals
+        result['signal'] = 0.0
+        
+        # Buy conditions:
+        # 1. RSI is oversold or close to it
+        # 2. MACD line crosses above signal line
+        buy_condition = (
+            (result['rsi'] < self.oversold + 5) &
+            (result['macd'] > result['signal_line']) &
+            (result['macd'].shift(1) <= result['signal_line'].shift(1))
+        )
+        
+        # Sell conditions:
+        # 1. RSI is overbought or close to it
+        # 2. MACD line crosses below signal line
+        sell_condition = (
+            (result['rsi'] > self.overbought - 5) &
+            (result['macd'] < result['signal_line']) &
+            (result['macd'].shift(1) >= result['signal_line'].shift(1))
+        )
+        
+        # Apply signals
+        result['signal'] = np.where(buy_condition, 1.0, result['signal'])
+        result['signal'] = np.where(sell_condition, -1.0, result['signal'])
+        
+        # Apply higher timeframe confirmation if provided and enabled
+        if self.use_higher_timeframe and higher_tf_data is not None:
+            higher_tf_result = self.calculate_indicators(higher_tf_data)
+            
+            if higher_tf_result is not None:
+                # Get the trend from higher timeframe
+                higher_tf_trend = higher_tf_result['macd'].iloc[-1] > higher_tf_result['signal_line'].iloc[-1]
+                result['higher_tf_bullish'] = higher_tf_trend
+                
+                # Filter signals based on higher timeframe trend
+                # Only keep buy signals if higher timeframe is bullish
+                # Only keep sell signals if higher timeframe is bearish
+                for i in range(len(result)):
+                    if result['signal'].iloc[i] == 1.0 and not higher_tf_trend:
+                        result.at[result.index[i], 'signal'] = 0.0
+                    elif result['signal'].iloc[i] == -1.0 and higher_tf_trend:
+                        result.at[result.index[i], 'signal'] = 0.0
+        
+        return result
 
 class SCStrategySignal(TradingStrategy):
     """Strategic Crypto (SC) signal strategy as shown in the example"""
@@ -203,6 +303,7 @@ def get_strategy(strategy_name, **kwargs):
         'ma_crossover': MovingAverageCrossover,
         'rsi': RSIStrategy,
         'bollinger_bands': BollingerBandsStrategy,
+        'macd_rsi': MACDRSIStrategy,
         'sc_signal': SCStrategySignal
     }
     

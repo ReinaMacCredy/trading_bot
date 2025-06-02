@@ -11,6 +11,11 @@ A Discord bot for cryptocurrency trading signals and analysis. The bot can gener
 - Monitor prices and execute trades (when connected to an exchange)
 - **NEW: Generate real signals based on actual Binance market data**
 - **NEW: Auto-calculate entry, TP, and SL prices based on volatility**
+- **NEW: Multi-exchange support through CCXT integration**
+- **NEW: Professional risk management with position sizing**
+- **NEW: Enhanced technical indicators using pandas-ta library**
+- **NEW: Dual timeframe MACD+RSI strategy for better signal confirmation**
+- **NEW: Advanced order placement with take-profit and stop-loss**
 
 ## Setup
 
@@ -49,6 +54,30 @@ python main.py
 - `b!live_signal [channel_id]`
   - Sends a live trading signal to a specified channel
   - Example: `b!live_signal 123456789012345678`
+
+- `b!dual_macd_rsi <symbol> [interval] [higher_tf]`
+  - Analyze a symbol using dual timeframe MACD+RSI strategy
+  - Example: `b!dual_macd_rsi BTC 1h 4h`
+
+### Risk Management Commands
+
+- `b!risk_settings [risk_per_trade] [max_daily_loss] [trailing_stop]`
+  - Update risk management settings (values in percentage)
+  - Example: `b!risk_settings 2 5 1.5`
+
+- `b!position_size <symbol> <entry_price> <stop_loss>`
+  - Calculate optimal position size based on your risk settings
+  - Example: `b!position_size BTC 60000 58500`
+
+### Advanced Trading Commands
+
+- `b!advanced_buy <symbol> <quantity> [take_profit] [stop_loss]`
+  - Buy with automatic take-profit and stop-loss orders
+  - Example: `b!advanced_buy BTC 0.01 61500 58500`
+
+- `b!exchanges`
+  - List all available exchanges through CCXT integration
+  - Example: `b!exchanges`
 
 ### Manual Trading Signal Commands
 
