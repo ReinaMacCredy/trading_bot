@@ -38,90 +38,90 @@ python main.py
 
 ### Real-time Trading Signal Commands
 
-- `//generate_signal <symbol> [strategy_code] [risk_reward]`
+- `b!generate_signal <symbol> [strategy_code] [risk_reward]`
   - Generates a trading signal with real Binance data
-  - Example: `//generate_signal BTC SC02 2.5`
+  - Example: `b!generate_signal BTC SC02 2.5`
 
-- `//market_signals [count]`
+- `b!market_signals [count]`
   - Generates trading signals for top market cap coins
-  - Example: `//market_signals 5`
+  - Example: `b!market_signals 5`
 
-- `//live_signal [channel_id]`
+- `b!live_signal [channel_id]`
   - Sends a live trading signal to a specified channel
-  - Example: `//live_signal 123456789012345678`
+  - Example: `b!live_signal 123456789012345678`
 
 ### Manual Trading Signal Commands
 
-- `//signal <symbol> <strategy_code> <entry_price> <tp_price> <sl_price> [ratio] [status] [imminent]`
+- `b!signal <symbol> <strategy_code> <entry_price> <tp_price> <sl_price> [ratio] [status] [imminent]`
   - Sends a trading signal for a specific cryptocurrency
-  - Example: `//signal AAVE SC02 180.6627 181.3468 180.3207 0.19% takeprofit 1`
+  - Example: `b!signal AAVE SC02 180.6627 181.3468 180.3207 0.19% takeprofit 1`
 
-- `//sc01 <symbol> <strategy_code> <entry_price> <tp_price> <sl_price> [ratio] [status] [imminent]`
+- `b!sc01 <symbol> <strategy_code> <entry_price> <tp_price> <sl_price> [ratio] [status] [imminent]`
   - Sends an SC01-style trading signal with formatting similar to the example
-  - Example: `//sc01 AAVE SC02 180.6627 181.3468 180.3207 0.19% takeprofit 1`
+  - Example: `b!sc01 AAVE SC02 180.6627 181.3468 180.3207 0.19% takeprofit 1`
 
 ### Analysis Commands
 
-- `//price <symbol>`
+- `b!price <symbol>`
   - Get current price of a cryptocurrency
-  - Example: `//price BTC`
+  - Example: `b!price BTC`
 
-- `//chart <symbol> [interval] [limit]`
+- `b!chart <symbol> [interval] [limit]`
   - Generate a price chart
-  - Example: `//chart ETH 4h 50`
+  - Example: `b!chart ETH 4h 50`
 
-- `//analyze <strategy> <symbol> [interval]`
+- `b!analyze <strategy> <symbol> [interval]`
   - Analyze a symbol using a specific strategy
-  - Example: `//analyze rsi BTC 1h`
+  - Example: `b!analyze rsi BTC 1h`
 
-- `//strategy_chart <strategy> <symbol> [interval] [limit]`
+- `b!strategy_chart <strategy> <symbol> [interval] [limit]`
   - Generate a chart with strategy indicators
-  - Example: `//strategy_chart bollinger_bands ETH 4h`
+  - Example: `b!strategy_chart bollinger_bands ETH 4h`
 
-- `//indicator <indicator_name> <symbol> [interval] [params]`
+- `b!indicator <indicator_name> <symbol> [interval] [params]`
   - Analyze a symbol using a specific technical indicator (MACD, RSI, EMA)
-  - Example: `//indicator rsi BTC 1h 14 30 70`
+  - Example: `b!indicator rsi BTC 1h 14 30 70`
   - Available indicators: `rsi`, `macd`, `ema`
 
-- `//indicator_chart <indicator_name> <symbol> [interval] [params]`
+- `b!indicator_chart <indicator_name> <symbol> [interval] [params]`
   - Generate a chart with technical indicator visualization
-  - Example: `//indicator_chart macd ETH 4h 12 26 9`
+  - Example: `b!indicator_chart macd ETH 4h 12 26 9`
 
-- `//help_indicators`
+- `b!help_indicators`
   - Show help for indicator commands and parameters
 
 ### Strategy Management
 
-- `//strategies`
+- `b!strategies`
   - List available trading strategies
 
-- `//add_strategy <strategy> <symbol> [interval]`
+- `b!add_strategy <strategy> <symbol> [interval]`
   - Add a trading strategy to monitor
-  - Example: `//add_strategy ma_crossover BTC 1h`
+  - Example: `b!add_strategy ma_crossover BTC 1h`
 
-- `//remove_strategy <strategy> <symbol> [interval]`
+- `b!remove_strategy <strategy> <symbol> [interval]`
   - Remove a trading strategy
-  - Example: `//remove_strategy ma_crossover BTC 1h`
+  - Example: `b!remove_strategy ma_crossover BTC 1h`
 
-- `//list_active_strategies`
+- `b!list_active_strategies`
   - List all active trading strategies
 
 ### Account Management
 
-- `//balance`
+- `b!balance`
   - Get your account balance
 
-- `//buy <symbol> <quantity>`
+- `b!buy <symbol> <quantity>`
   - Buy a cryptocurrency at market price
-  - Example: `//buy BTC 0.01`
+  - Example: `b!buy BTC 0.01`
 
-- `//sell <symbol> <quantity>`
+- `b!sell <symbol> <quantity>`
   - Sell a cryptocurrency at market price
-  - Example: `//sell BTC 0.01`
+  - Example: `b!sell BTC 0.01`
 
 ### Utilities
 
-- `//test_connection`
+- `b!test_connection`
   - Test the connection to Binance API
 
 ## Example Output

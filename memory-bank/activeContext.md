@@ -27,13 +27,31 @@ The current focus is implementing a Discord trading signal bot that displays for
 - **Added command cooldowns to prevent accidental multiple executions**
 - **Improved status message handling to reduce chat clutter**
 - **Standardized author name to "Reina" for consistency**
+- **Fixed duplicate signal output bug by removing TradingSignalBot import in main.py**
+- **Fixed issue with inconsistent author names in signals by adding author parameter to create_signal_embed**
+- **Added signal_sent flag to prevent multiple signals from being sent for a single command**
+- **Fixed duplicate signals bug by removing the TradingSignalBot class from bot.py**
+- **Enhanced duplicate signal detection in generate_signal command**
+- **Standardized author attribution to always use "Reina" in all signal commands**
+- **LATEST FIX: Implemented comprehensive duplicate signal prevention system with:**
+  - Command execution locking to prevent multiple simultaneous executions of the same command by the same user
+  - Enhanced timestamp-based duplicate detection in signal storage (within 30 seconds)
+  - Improved logging for debugging signal generation flow
+  - Removed redundant signal_sent flag logic that was causing confusion
+  - Added proper error handling to prevent status message update failures
+- **NEW FIX: Resolved duplicate signals issue by:**
+  - Adding explicit signal sent tracking in the generate_signal command
+  - Enhancing the store_signal method with better duplicate detection (60-second window)
+  - Adding more comprehensive error handling for command execution
+  - Improving timestamp validation in signal storage
+  - Adding more detailed logging for signal generation and storage
 
 ## Next Steps
 1. Implement multiple signal templates (beyond SC01)
 2. Add support for signal history and retrieval (database storage)
 3. Create scheduled signal broadcasting
 4. Add support for signal attachments (like images/charts)
-5. Implement signal reactions for user feedback
+5. Add signal reactions for user feedback
 6. Add translation support for multilingual signals
 7. Create a signal dashboard for tracking performance
 8. Implement automatic signal generation based on multiple timeframes
@@ -45,6 +63,7 @@ The current focus is implementing a Discord trading signal bot that displays for
 - Green color for active signals
 - Structured layout with clear sections for price levels
 - Including both English and Vietnamese labels for international users
+- **Consistent "By Reina~" footer on all signals**
 
 ### Signal Generation Logic
 - **Using Average True Range (ATR) for volatility-based TP/SL calculation**
@@ -58,6 +77,7 @@ The current focus is implementing a Discord trading signal bot that displays for
 - Default values for optional parameters to simplify basic usage
 - **New commands focus on automatic signal generation**
 - **Command cooldowns added to prevent duplicate signals from rapid clicks**
+- **Command execution locking to prevent multiple simultaneous executions**
 
 ### Error Handling
 - Comprehensive error handling for all commands
@@ -65,6 +85,7 @@ The current focus is implementing a Discord trading signal bot that displays for
 - Logging of errors for troubleshooting
 - **Demo mode fallback when API credentials are not available**
 - **Added specific handling for command cooldown errors**
+- **Enhanced error handling for Discord API rate limits**
 
 ### Performance Considerations
 - Efficient storage of signals
@@ -72,3 +93,7 @@ The current focus is implementing a Discord trading signal bot that displays for
 - Optimizing chart generation for faster response
 - **Caching price data to avoid redundant API calls**
 - **Duplicate signal prevention to avoid data redundancy** 
+- **Fixed bot architecture to prevent duplicate signals from being sent** 
+- **Added safeguards to ensure each command only sends one signal** 
+- **Implemented threading locks to prevent race conditions in signal generation**
+- **Enhanced duplicate detection with timestamp checking for signals generated within 60 seconds** 

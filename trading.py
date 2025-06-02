@@ -458,19 +458,58 @@ class TradingBot:
     
     def store_signal(self, signal):
         """Store a trading signal"""
-        # Check if this exact signal already exists
-        for existing in self.signals:
+        # Add timestamp to signal for additional tracking
+        from datetime import datetime
+        signal['timestamp'] = datetime.now().isoformat()
+        
+        # Enhanced duplicate detection - log all checks for better debugging
+        symbol = signal.get('symbol', 'UNKNOWN')
+        strategy = signal.get('strategy_code', 'UNKNOWN')
+        
+        # Check 1: Check if this exact signal already exists (exact match on key fields)
+        for idx, existing in enumerate(self.signals):
             if (existing['symbol'] == signal['symbol'] and 
                 existing['strategy_code'] == signal['strategy_code'] and
                 existing['entry_price'] == signal['entry_price'] and
                 existing['tp_price'] == signal['tp_price'] and
                 existing['sl_price'] == signal['sl_price']):
-                logger.info(f"Signal for {signal['symbol']}-{signal['strategy_code']} already exists, not storing duplicate")
+                logger.info(f"Duplicate exact match signal detected for {symbol}-{strategy} at index {idx}, not storing")
                 return False
+        
+        # Check 2: Check for signals with close price values (within 0.1% difference)
+        for idx, existing in enumerate(self.signals):
+            if (existing['symbol'] == signal['symbol'] and 
+                existing['strategy_code'] == signal['strategy_code']):
+                # Calculate price difference percentage
+                entry_diff_pct = abs(float(existing['entry_price']) - float(signal['entry_price'])) / float(signal['entry_price']) * 100
+                if entry_diff_pct < 0.1:  # If prices are within 0.1% of each other
+                    logger.info(f"Near-duplicate signal detected for {symbol}-{strategy} at index {idx}, price difference: {entry_diff_pct:.3f}%, not storing")
+                    return False
+        
+        # Check 3: Check for recent signals with same symbol and strategy (within 120 seconds - extended window)
+        current_time = datetime.now()
+        for idx, existing in enumerate(self.signals):
+            if 'timestamp' in existing:
+                try:
+                    existing_time = datetime.fromisoformat(existing['timestamp'])
+                    time_diff = (current_time - existing_time).total_seconds()
+                    if (time_diff < 120 and
+                        existing['symbol'] == signal['symbol'] and 
+                        existing['strategy_code'] == signal['strategy_code']):
+                        logger.info(f"Recent signal for {symbol}-{strategy} exists at index {idx} (generated {time_diff:.1f}s ago), not storing duplicate")
+                        return False
+                except (ValueError, TypeError) as e:
+                    # Handle invalid timestamp format
+                    logger.warning(f"Error parsing timestamp for signal {idx}: {e}")
         
         # Store the new signal
         self.signals.append(signal)
-        logger.info(f"Stored signal for {signal['symbol']}-{signal['strategy_code']}")
+        logger.info(f"Stored NEW signal for {symbol}-{strategy} (total signals: {len(self.signals)})")
+        
+        # Print summary of all signals for debugging
+        signal_list = [f"{s.get('symbol', '')}-{s.get('strategy_code', '')}" for s in self.signals]
+        logger.info(f"Current signals in storage: {signal_list}")
+        
         return True
     
     def get_signals(self, symbol=None):

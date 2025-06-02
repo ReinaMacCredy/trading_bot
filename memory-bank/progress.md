@@ -18,6 +18,12 @@
 - ✅ Command cooldowns to prevent accidental multiple executions
 - ✅ Improved status message handling for better UX
 - ✅ Consistent author attribution on all signals
+- ✅ Fixed duplicate signal output bug in the bot architecture
+- ✅ Resolved duplicate signal generation issue by removing redundant bot instance in bot.py
+- ✅ Enhanced duplicate signal detection for improved reliability
+- ✅ Standardized author attribution consistently to "Reina" across all commands
+- ✅ Implemented robust duplicate signal prevention with multi-layered checks
+- ✅ Added comprehensive error handling for all signal generation processes
 
 ## What's Left to Build
 - ⬜ Multiple signal templates/styles beyond SC01
@@ -36,7 +42,7 @@ The bot is now capable of generating and displaying trading signals in the forma
 
 Users can create signals either manually (specifying all parameters) or automatically (letting the bot calculate appropriate levels). The bot also supports generating signals for multiple coins at once with the `market_signals` command.
 
-Recent improvements include a system to prevent duplicate signals from being created and cooldown timers on commands to prevent accidental multiple executions. The bot now uses consistent "Reina" attribution for all generated signals.
+Recent improvements include a comprehensive system to prevent duplicate signals, with multi-layered detection including command locking, signal flagging, and timestamp-based deduplication. The duplicate signal issue has been fixed by improving error handling, adding better signal tracking, and enhancing the signal storage mechanism with more robust duplicate detection logic (60-second window). The bot now uses consistent "Reina" attribution for all generated signals.
 
 The basic functionality is complete, with several advanced features implemented. The bot can be run in demo mode without Binance API credentials, making it easy to test.
 

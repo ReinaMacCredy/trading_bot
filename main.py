@@ -8,7 +8,7 @@ import os
 import traceback
 from discord import File
 from trading import TradingBot
-from bot import TradingSignalBot, create_signal_embed
+from bot import create_signal_embed  # Only import the create_signal_embed function, not the TradingSignalBot
 from datetime import datetime
 import random
 
@@ -40,11 +40,71 @@ intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
 
-bot = commands.Bot(command_prefix='//', intents=intents)
+bot = commands.Bot(command_prefix='b!', intents=intents)
 trading_bot = None
 
 # Add command cooldown management
 from discord.ext.commands import cooldown, BucketType
+
+# Add execution tracking to prevent duplicates
+import threading
+command_locks = {}
+command_lock = threading.Lock()
+
+# Global signal tracker to prevent duplicates across command invocations
+# Format: {"symbol_strategy": {"timestamp": datetime, "count": int}}
+signal_tracker = {}
+signal_tracker_lock = threading.Lock()
+
+def is_command_running(user_id, command_name):
+    """Check if a command is already running for a user"""
+    with command_lock:
+        key = f"{user_id}_{command_name}"
+        return key in command_locks
+
+def set_command_running(user_id, command_name):
+    """Mark a command as running for a user"""
+    with command_lock:
+        key = f"{user_id}_{command_name}"
+        command_locks[key] = True
+
+def clear_command_running(user_id, command_name):
+    """Clear the running status for a command"""
+    with command_lock:
+        key = f"{user_id}_{command_name}"
+        if key in command_locks:
+            del command_locks[key]
+
+def track_signal(symbol, strategy_code):
+    """Record a signal to prevent duplicates"""
+    with signal_tracker_lock:
+        key = f"{symbol}_{strategy_code}"
+        now = datetime.now()
+        
+        if key in signal_tracker:
+            signal_tracker[key]["count"] += 1
+            signal_tracker[key]["timestamp"] = now
+        else:
+            signal_tracker[key] = {"timestamp": now, "count": 1}
+            
+        return signal_tracker[key]["count"]
+
+def is_duplicate_signal(symbol, strategy_code, window_seconds=180):
+    """Check if a signal was recently generated (within the time window)"""
+    with signal_tracker_lock:
+        key = f"{symbol}_{strategy_code}"
+        now = datetime.now()
+        
+        if key in signal_tracker:
+            time_diff = (now - signal_tracker[key]["timestamp"]).total_seconds()
+            count = signal_tracker[key]["count"]
+            
+            # If signal was generated in the last window_seconds and has been sent more than once
+            if time_diff < window_seconds and count > 1:
+                logger.warning(f"Duplicate signal detected for {symbol}-{strategy_code}: generated {time_diff:.1f}s ago, count: {count}")
+                return True
+        
+        return False
 
 @bot.event
 async def on_ready():
@@ -353,9 +413,9 @@ async def analyze_indicator(ctx, indicator_name: str, symbol: str, interval: str
     - args: Additional parameters for the indicator
     
     Examples:
-    //indicator rsi BTC 1h 14 30 70
-    //indicator macd ETH 4h 12 26 9
-    //indicator ema BTC 1d 20
+    b!indicator rsi BTC 1h 14 30 70
+    b!indicator macd ETH 4h 12 26 9
+    b!indicator ema BTC 1d 20
     """
     if not trading_bot:
         await ctx.send("Trading bot is not initialized. Check logs for details.")
@@ -436,9 +496,9 @@ async def generate_indicator_chart(ctx, indicator_name: str, symbol: str, interv
     - args: Additional parameters for the indicator
     
     Examples:
-    //indicator_chart rsi BTC 1h 14 30 70
-    //indicator_chart macd ETH 4h 12 26 9
-    //indicator_chart ema BTC 1d 20
+    b!indicator_chart rsi BTC 1h 14 30 70
+    b!indicator_chart macd ETH 4h 12 26 9
+    b!indicator_chart ema BTC 1d 20
     """
     if not trading_bot:
         await ctx.send("Trading bot is not initialized. Check logs for details.")
@@ -504,16 +564,16 @@ async def help_indicators(ctx):
     )
     
     embed.add_field(
-        name="//indicator <indicator_name> <symbol> [interval] [params]",
+        name="b!indicator <indicator_name> <symbol> [interval] [params]",
         value="Analyze a symbol using a specific indicator\n"
-              "Example: `//indicator rsi BTC 1h 14 30 70`",
+              "Example: `b!indicator rsi BTC 1h 14 30 70`",
         inline=False
     )
     
     embed.add_field(
-        name="//indicator_chart <indicator_name> <symbol> [interval] [params]",
+        name="b!indicator_chart <indicator_name> <symbol> [interval] [params]",
         value="Generate a chart with indicator visualization\n"
-              "Example: `//indicator_chart macd ETH 4h 12 26 9`",
+              "Example: `b!indicator_chart macd ETH 4h 12 26 9`",
         inline=False
     )
     
@@ -549,7 +609,7 @@ async def send_signal(ctx, symbol: str, strategy_code: str, entry_price: float, 
     - status: Signal status (default: takeprofit)
     - imminent: Imminent entry indicator (default: 1)
     """
-    embed = create_signal_embed(f"{symbol}-{strategy_code}", "", entry_price, tp_price, sl_price, ratio, status, imminent)
+    embed = create_signal_embed(f"{symbol}-{strategy_code}", "", entry_price, tp_price, sl_price, ratio, status, imminent, "Reina")
     await ctx.send(embed=embed)
 
 @bot.command(name='sc01')
@@ -565,7 +625,7 @@ async def sc01_signal(ctx, symbol: str, strategy_code: str, entry_price: float, 
     )
     
     # Add a smaller embed for the signal
-    signal_embed = create_signal_embed(f"{symbol}-{strategy_code}", "", entry_price, tp_price, sl_price, ratio, status, imminent)
+    signal_embed = create_signal_embed(f"{symbol}-{strategy_code}", "", entry_price, tp_price, sl_price, ratio, status, imminent, "Reina")
     
     # Convert the signal embed to a field in the main embed
     embed.add_field(name=f"{symbol} - {strategy_code}", value=signal_embed.description, inline=False)
@@ -604,7 +664,7 @@ async def add_sc_signal(ctx, symbol: str, strategy_code: str, entry_price: float
             trading_bot.store_signal(signal)
             await ctx.send(f"Added SC signal for {symbol}-{strategy_code}")
         else:
-            embed = create_signal_embed(f"{symbol}-{strategy_code}", "", entry_price, tp_price, sl_price, ratio, "takeprofit", 1)
+            embed = create_signal_embed(f"{symbol}-{strategy_code}", "", entry_price, tp_price, sl_price, ratio, "takeprofit", 1, "Reina")
             await ctx.send("Signal created (but storage not implemented):", embed=embed)
     
     except Exception as e:
@@ -636,7 +696,7 @@ async def on_command_error(ctx, error):
     await ctx.send(f"An error occurred while executing the command: {str(error)}")
 
 @bot.command(name='generate_signal')
-@cooldown(1, 5, BucketType.user)  # 1 use per 5 seconds per user
+@cooldown(1, 10, BucketType.user)  # Increase cooldown to 10 seconds
 async def generate_signal(ctx, symbol: str, strategy_code: str = "SC02", risk_reward: float = 2.0):
     """Generate a trading signal using real Binance data
     
@@ -645,29 +705,70 @@ async def generate_signal(ctx, symbol: str, strategy_code: str = "SC02", risk_re
     - strategy_code: Strategy code (default: SC02)
     - risk_reward: Risk/reward ratio (default: 2.0)
     """
-    if not trading_bot:
-        await ctx.send("Trading bot is not initialized. Check logs for details.")
+    logger.info(f"Generate signal command called by {ctx.author} for {symbol} with {strategy_code}")
+    
+    # Pre-check for duplicate signals
+    symbol = symbol.upper()
+    if is_duplicate_signal(symbol, strategy_code):
+        await ctx.send(f"A signal for {symbol}-{strategy_code} was recently generated. Please wait before requesting another.")
         return
     
-    symbol = symbol.upper()
-    # Only send one confirmation message
-    status_message = await ctx.send(f"Generating trading signal for {symbol} with {strategy_code} strategy...")
+    # Check if this command is already running for this user
+    if is_command_running(ctx.author.id, 'generate_signal'):
+        logger.warning(f"Generate signal command already running for user {ctx.author}")
+        await ctx.send("Signal generation is already in progress. Please wait for it to complete.")
+        return
+    
+    # Track this signal generation attempt
+    track_count = track_signal(symbol, strategy_code)
+    if track_count > 1:
+        logger.warning(f"Signal for {symbol}-{strategy_code} has been requested {track_count} times recently")
+    
+    # Mark command as running
+    set_command_running(ctx.author.id, 'generate_signal')
+    
+    # Create a single status message we'll use for updates
+    status_message = None
+    signal_sent = False  # Track if signal has been sent
     
     try:
-        # Generate signal from real market data
-        # Use consistent author "Reina" for all signals
+        if not trading_bot:
+            await ctx.send("Trading bot is not initialized. Check logs for details.")
+            return
+        
+        # Send only one status message
+        status_message = await ctx.send(f"Generating trading signal for {symbol} with {strategy_code} strategy...")
+        
+        logger.info(f"Starting signal generation for {symbol}-{strategy_code}")
+        
+        # Generate signal from real market data with author explicitly set to "Reina"
         signal = trading_bot.generate_trading_signal(symbol, strategy_code, risk_reward, "Reina")
         
         if not signal:
+            logger.warning(f"Failed to generate signal for {symbol}")
             await status_message.edit(content=f"Failed to generate signal for {symbol}. Check logs for details.")
             return
         
+        logger.info(f"Signal generated for {symbol}: {signal['entry_price']}")
+        
+        # Check if a similar signal already exists to prevent duplicates
+        existing_signals = trading_bot.get_signals(symbol)
+        for existing in existing_signals:
+            if (existing['strategy_code'] == signal['strategy_code'] and
+                existing['entry_price'] == signal['entry_price']):
+                logger.info(f"Duplicate signal detected in existing signals check for {symbol}")
+                await status_message.edit(content=f"A signal for {symbol} with same parameters already exists.")
+                return
+        
         # Store the signal (returns False if it's a duplicate)
-        if not trading_bot.store_signal(signal):
+        store_result = trading_bot.store_signal(signal)
+        logger.info(f"Store signal result for {symbol}: {store_result}")
+        
+        if not store_result:
             await status_message.edit(content=f"A signal for {symbol} with same parameters already exists. Use a different strategy or wait for market conditions to change.")
             return
         
-        # Create and send the embed
+        # Create the embed once with the author explicitly set to "Reina"
         embed = create_signal_embed(
             f"{signal['symbol']}-{signal['strategy_code']}", 
             "",
@@ -676,27 +777,58 @@ async def generate_signal(ctx, symbol: str, strategy_code: str = "SC02", risk_re
             signal['sl_price'], 
             signal['ratio'], 
             signal['status'], 
-            signal['imminent']
+            signal['imminent'],
+            "Reina"  # Explicitly set author to Reina
         )
         
-        # Edit the status message instead of sending a new one
-        await status_message.delete()
-        await ctx.send(embed=embed)
+        logger.info(f"About to send signal embed for {symbol}")
+        
+        # Delete the status message to avoid clutter
+        try:
+            await status_message.delete()
+            status_message = None
+        except:
+            pass
+        
+        # Send the signal only once and mark as sent
+        if not signal_sent:
+            await ctx.send(embed=embed)
+            signal_sent = True
+            logger.info(f"Signal sent successfully for {symbol}")
         
     except Exception as e:
-        logger.error(f"Error generating signal: {e}")
-        await status_message.edit(content=f"Error generating signal: {e}")
+        logger.error(f"Error generating signal for {symbol}: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        try:
+            if status_message:
+                await status_message.edit(content=f"Error generating signal: {e}")
+        except:
+            await ctx.send(f"Error generating signal: {e}")
+    finally:
+        # Always clear the running status
+        clear_command_running(ctx.author.id, 'generate_signal')
 
 @bot.command(name='market_signals')
-@cooldown(1, 10, BucketType.user)  # 1 use per 10 seconds per user (longer because this generates multiple signals)
+@cooldown(1, 15, BucketType.user)  # Increased cooldown to 15 seconds per user
 async def market_signals(ctx, count: int = 3):
     """Generate trading signals for top market cap coins
     
     Parameters:
     - count: Number of signals to generate (default: 3)
     """
+    # Check if this command is already running for this user
+    if is_command_running(ctx.author.id, 'market_signals'):
+        logger.warning(f"Market signals command already running for user {ctx.author}")
+        await ctx.send("Market signal generation is already in progress. Please wait for it to complete.")
+        return
+    
+    # Mark command as running
+    set_command_running(ctx.author.id, 'market_signals')
+    
     if not trading_bot:
         await ctx.send("Trading bot is not initialized. Check logs for details.")
+        clear_command_running(ctx.author.id, 'market_signals')
         return
     
     # Top market cap coins
@@ -717,6 +849,7 @@ async def market_signals(ctx, count: int = 3):
     
     signals_count = 0
     attempted_coins = set()
+    processed_combinations = set()  # Track which symbol-strategy combinations we've tried
     
     # Try to generate unique signals up to a maximum number of attempts
     max_attempts = len(top_coins) * len(strategies)
@@ -734,63 +867,102 @@ async def market_signals(ctx, count: int = 3):
         
         symbol = random.choice(available_coins)
         attempted_coins.add(symbol)
+        
+        # Try each strategy for this symbol until we find one that works
+        random.shuffle(strategies)  # Randomize strategy order
+        strategy_found = False
+        
+        for strategy_code in strategies:
+            # Skip if we've already tried this combination
+            combo = f"{symbol}_{strategy_code}"
+            if combo in processed_combinations:
+                continue
             
-        try:
-            # Pick a strategy randomly for variety
-            strategy_code = random.choice(strategies)
+            processed_combinations.add(combo)
             
-            # Generate signal - always use Reina as author for consistency
-            signal = trading_bot.generate_trading_signal(symbol, strategy_code, 2.0, "Reina")
-            
-            if not signal:
+            # Check for recent duplicate signals
+            if is_duplicate_signal(symbol, strategy_code):
+                logger.info(f"Skipping {symbol}-{strategy_code} as it was recently generated")
                 continue
                 
-            # Store the signal (will return False if duplicate)
-            if not trading_bot.store_signal(signal):
+            try:
+                # Track this signal generation attempt
+                track_signal(symbol, strategy_code)
+                
+                # Generate signal - always use Reina as author for consistency
+                signal = trading_bot.generate_trading_signal(symbol, strategy_code, 2.0, "Reina")
+                
+                if not signal:
+                    continue
+                    
+                # Store the signal (will return False if duplicate)
+                if not trading_bot.store_signal(signal):
+                    continue
+                
+                # Create embedded content
+                entry_text = f"Entry: {signal['entry_price']}"
+                tp_text = f"TP (2R): {signal['tp_price']}"
+                sl_text = f"SL: {signal['sl_price']}"
+                
+                signal_content = f"{entry_text} - {tp_text} - {sl_text}\n"
+                signal_content += f"Imminent (Sắp vào Entry): {signal['imminent']}\n"
+                signal_content += f"Ratio (Tỉ lệ): {signal['ratio']}%\n"
+                signal_content += f"Status (Trạng thái): {signal['status']}"
+                
+                # Add to main embed
+                main_embed.add_field(
+                    name=f"🟢 {signal['symbol']} - {signal['strategy_code']}", 
+                    value=signal_content, 
+                    inline=False
+                )
+                
+                signals_count += 1
+                strategy_found = True
+                break  # Move to next coin after finding a valid strategy
+                
+            except Exception as e:
+                logger.error(f"Error generating signal for {symbol}: {e}")
                 continue
-            
-            # Create embedded content
-            entry_text = f"Entry: {signal['entry_price']}"
-            tp_text = f"TP (2R): {signal['tp_price']}"
-            sl_text = f"SL: {signal['sl_price']}"
-            
-            signal_content = f"{entry_text} - {tp_text} - {sl_text}\n"
-            signal_content += f"Imminent (Sắp vào Entry): {signal['imminent']}\n"
-            signal_content += f"Ratio (Tỉ lệ): {signal['ratio']}%\n"
-            signal_content += f"Status (Trạng thái): {signal['status']}"
-            
-            # Add to main embed
-            main_embed.add_field(
-                name=f"🟢 {signal['symbol']} - {signal['strategy_code']}", 
-                value=signal_content, 
-                inline=False
-            )
-            
-            signals_count += 1
-            
-        except Exception as e:
-            logger.error(f"Error generating signal for {symbol}: {e}")
+        
+        # If we couldn't find any valid strategy for this symbol, continue to the next
+        if not strategy_found:
             continue
     
     # Delete status message before sending the results
-    await status_message.delete()
+    try:
+        await status_message.delete()
+    except:
+        pass
     
     if signals_count > 0:
         main_embed.set_footer(text="By Reina~")
         await ctx.send(embed=main_embed)
     else:
         await ctx.send("Failed to generate any signals. Check logs for details.")
+    
+    # Clear command running status
+    clear_command_running(ctx.author.id, 'market_signals')
 
 @bot.command(name='live_signal')
-@cooldown(1, 5, BucketType.user)  # 1 use per 5 seconds per user
+@cooldown(1, 10, BucketType.user)  # Increased cooldown to 10 seconds per user
 async def live_signal(ctx, channel_id: str = None):
     """Send a live trading signal to a specified channel
     
     Parameters:
     - channel_id: Optional channel ID to send signal to (default: current channel)
     """
+    # Check if this command is already running for this user
+    if is_command_running(ctx.author.id, 'live_signal'):
+        logger.warning(f"Live signal command already running for user {ctx.author}")
+        await ctx.send("Signal generation is already in progress. Please wait for it to complete.")
+        return
+    
+    # Mark command as running
+    set_command_running(ctx.author.id, 'live_signal')
+    
     if not trading_bot:
         await ctx.send("Trading bot is not initialized. Check logs for details.")
+        clear_command_running(ctx.author.id, 'live_signal')
         return
     
     # Use provided channel or current channel
@@ -801,6 +973,7 @@ async def live_signal(ctx, channel_id: str = None):
     
     # Send a single status message that we'll update
     status_message = await ctx.send(f"Generating a live trading signal...")
+    signal_sent = False  # Track if signal has been sent
     
     # Choose a random coin
     symbol = random.choice(top_coins)
@@ -809,12 +982,31 @@ async def live_signal(ctx, channel_id: str = None):
     strategies = ["SC01", "SC02", "SC02+FRVP"]
     strategy_code = random.choice(strategies)
     
+    # Check for duplicate signals first
+    if is_duplicate_signal(symbol, strategy_code):
+        # If duplicate detected, try a different coin and strategy
+        remaining_coins = [coin for coin in top_coins if coin != symbol]
+        symbol = random.choice(remaining_coins) if remaining_coins else symbol
+        strategy_code = random.choice([s for s in strategies if s != strategy_code])
+        
+        # Still check again with new selection
+        if is_duplicate_signal(symbol, strategy_code):
+            await status_message.edit(content=f"A signal for {symbol}-{strategy_code} was recently generated. Please try again later.")
+            clear_command_running(ctx.author.id, 'live_signal')
+            return
+    
+    # Track this signal generation attempt
+    track_count = track_signal(symbol, strategy_code)
+    if track_count > 1:
+        logger.warning(f"Signal for {symbol}-{strategy_code} has been requested {track_count} times recently")
+    
     try:
         # Generate signal - always use Reina as author for consistency
         signal = trading_bot.generate_trading_signal(symbol, strategy_code, 2.0, "Reina")
         
         if not signal:
             await status_message.edit(content=f"Failed to generate signal. Check logs for details.")
+            clear_command_running(ctx.author.id, 'live_signal')
             return
             
         # Store the signal (will return False if duplicate)
@@ -827,40 +1019,52 @@ async def live_signal(ctx, channel_id: str = None):
                 signal = trading_bot.generate_trading_signal(symbol, strategy_code, 2.0, "Reina")
                 if not signal or not trading_bot.store_signal(signal):
                     await status_message.edit(content=f"Failed to generate a unique signal. Try again later.")
+                    clear_command_running(ctx.author.id, 'live_signal')
                     return
             else:
                 await status_message.edit(content=f"Failed to generate a unique signal. Try again later.")
+                clear_command_running(ctx.author.id, 'live_signal')
                 return
         
         # Get target channel
         target_channel = bot.get_channel(int(target_channel_id))
         if not target_channel:
             await status_message.edit(content=f"Channel with ID {target_channel_id} not found.")
+            clear_command_running(ctx.author.id, 'live_signal')
             return
         
-        # Create and send the embed
-        embed = create_signal_embed(
-            f"{signal['symbol']}-{signal['strategy_code']}", 
-            "",
-            signal['entry_price'], 
-            signal['tp_price'], 
-            signal['sl_price'], 
-            signal['ratio'], 
-            signal['status'], 
-            signal['imminent']
-        )
-        
-        # Delete status message if sending to the same channel
-        if int(target_channel_id) == ctx.channel.id:
-            await status_message.delete()
-        else:
-            await status_message.edit(content=f"Signal sent to channel {target_channel.name}.")
-        
-        await target_channel.send(embed=embed)
+        # Create and send the embed only once
+        if not signal_sent:
+            embed = create_signal_embed(
+                f"{signal['symbol']}-{signal['strategy_code']}", 
+                "",
+                signal['entry_price'], 
+                signal['tp_price'], 
+                signal['sl_price'], 
+                signal['ratio'], 
+                signal['status'], 
+                signal['imminent'],
+                "Reina"  # Explicitly set author to Reina
+            )
+            
+            # Delete status message if sending to the same channel
+            if int(target_channel_id) == ctx.channel.id:
+                await status_message.delete()
+                status_message = None
+            else:
+                await status_message.edit(content=f"Signal sent to channel {target_channel.name}.")
+            
+            await target_channel.send(embed=embed)
+            signal_sent = True
+            logger.info(f"Live signal sent successfully for {symbol}")
         
     except Exception as e:
         logger.error(f"Error generating live signal: {e}")
-        await status_message.edit(content=f"Error generating live signal: {e}")
+        if status_message:
+            await status_message.edit(content=f"Error generating live signal: {e}")
+    finally:
+        # Always clear the command running status
+        clear_command_running(ctx.author.id, 'live_signal')
 
 def run_bot():
     """Run the Discord bot"""
