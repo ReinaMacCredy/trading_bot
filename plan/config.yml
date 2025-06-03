@@ -1,0 +1,64 @@
+# Configuration for Discord Trading Bot
+
+trading:
+  # Risk Management
+  risk_percentage: 2.0          # Percentage of account balance to risk per trade
+  max_positions: 5              # Maximum number of open positions
+  max_daily_loss: 5.0           # Maximum daily loss percentage
+
+  # Technical Indicators
+  indicators:
+    rsi:
+      period: 14
+      overbought: 70
+      oversold: 30
+
+    macd:
+      fast_period: 12
+      slow_period: 26
+      signal_period: 9
+
+    ema:
+      periods: [9, 21, 50, 200]
+
+  # Trading Symbols
+  symbols:
+    - "BTC/USDT"
+    - "ETH/USDT"
+    - "BNB/USDT"
+    - "ADA/USDT"
+    - "DOT/USDT"
+
+  # Timeframes
+  timeframes:
+    analysis: "1h"        # Main analysis timeframe
+    monitoring: "5m"      # Real-time monitoring
+    backtest: "1d"        # Backtesting timeframe
+
+# Discord Settings
+discord:
+  command_prefix: "!"
+  embed_color: 0x00ff00
+  channels:
+    signals: "trading-signals"
+    alerts: "trading-alerts"
+    general: "trading-general"
+
+# Exchange Settings
+exchange:
+  name: "binance"
+  sandbox: true           # Use testnet for safety
+  rate_limit: true
+  timeout: 30000
+
+# Monitoring
+monitoring:
+  check_interval: 300     # Check market every 5 minutes (300 seconds)
+  log_level: "INFO"
+  enable_alerts: true
+
+# Backtesting
+backtesting:
+  initial_balance: 10000
+  commission: 0.001       # 0.1% trading fee
+  slippage: 0.0005       # 0.05% slippage

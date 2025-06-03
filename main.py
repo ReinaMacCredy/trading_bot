@@ -50,7 +50,7 @@ intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
 
-bot = commands.Bot(command_prefix='b!', intents=intents)
+bot = commands.Bot(command_prefix='b!', intents=intents, help_command=None)
 trading_bot = None
 optimization_manager = None
 
@@ -133,6 +133,100 @@ async def on_ready():
     except Exception as e:
         logger.error(f"Failed to initialize bot components: {e}")
         traceback.print_exc()
+
+@bot.command(name='help')
+async def help_menu(ctx):
+    """Display help information for the trading bot"""
+    embed = discord.Embed(title="Trading Bot", color=0x2F3136)
+    embed.set_author(name="Trading Bot", icon_url="https://i.imgur.com/8dQlQAW.png")
+    embed.set_footer(text="Page 1/2")
+    
+    # Meta section
+    embed.add_field(name="Meta", value="------------------------", inline=False)
+    embed.add_field(name="Meta commands related to the bot", value="------------------------", inline=False)
+    
+    # Getting Started section
+    embed.add_field(name="Getting Started", value="", inline=False)
+    
+    getting_started_text = (
+        "b!help: How to use the trading bot\n"
+        "b!tip: Get some tips about Trading Bot\n"
+        "b!exchanges: List available exchanges\n"
+        "b!test_connection: Test connection to exchanges\n"
+        "b!categories: Show a list of all available categories\n"
+    )
+    embed.add_field(name="\u200b", value=getting_started_text, inline=False)
+    
+    # Trading section
+    embed.add_field(name="Trading", value="", inline=False)
+    
+    trading_text = (
+        "b!price: Get current price for a cryptocurrency\n"
+        "b!balance: Check your account balance\n"
+        "b!buy: Execute a buy order\n"
+        "b!sell: Execute a sell order\n"
+        "b!chart: Display a price chart for a cryptocurrency\n"
+        "b!advanced_buy: Execute a buy with risk management\n"
+    )
+    embed.add_field(name="\u200b", value=trading_text, inline=False)
+    
+    # Strategy section
+    embed.add_field(name="Strategies", value="", inline=False)
+    
+    strategy_text = (
+        "b!strategies: Show available trading strategies\n"
+        "b!analyze: Analyze a coin with a specific strategy\n"
+        "b!strategy_chart: Generate chart with strategy signals\n"
+        "b!add_strategy: Add a new trading strategy\n"
+        "b!remove_strategy: Remove an existing strategy\n"
+        "b!list_active_strategies: Show your active strategies\n"
+    )
+    embed.add_field(name="\u200b", value=strategy_text, inline=False)
+    
+    await ctx.send(embed=embed)
+    
+    # Create a second embed for additional commands
+    embed2 = discord.Embed(title="Trading Bot", color=0x2F3136)
+    embed2.set_footer(text="Page 2/2")
+    
+    # Indicators section
+    embed2.add_field(name="Indicators", value="", inline=False)
+    
+    indicators_text = (
+        "b!indicator: Analyze a specific indicator on a coin\n"
+        "b!indicator_chart: Generate chart with indicator values\n"
+        "b!help_indicators: Show available indicators and usage\n"
+        "b!dual_macd_rsi: Advanced dual timeframe MACD+RSI analysis\n"
+    )
+    embed2.add_field(name="\u200b", value=indicators_text, inline=False)
+    
+    # Signal section
+    embed2.add_field(name="Signals", value="", inline=False)
+    
+    signals_text = (
+        "b!signal: Send a trading signal to the channel\n"
+        "b!sc01: Send a SC01 trading signal\n"
+        "b!sc_add: Add a new signal configuration\n"
+        "b!generate_signal: Auto-generate a trading signal\n"
+        "b!market_signals: Show recent market signals\n"
+        "b!live_signal: Get live trading signals\n"
+    )
+    embed2.add_field(name="\u200b", value=signals_text, inline=False)
+    
+    # Optimization section
+    embed2.add_field(name="Optimization", value="", inline=False)
+    
+    optimization_text = (
+        "b!optimize_params: Optimize strategy parameters\n"
+        "b!genetic_optimize: Use genetic algorithm for optimization\n"
+        "b!market_regime: Detect current market regime\n"
+        "b!risk_settings: Update your risk management settings\n"
+        "b!position_size: Calculate optimal position size\n"
+        "b!position_size_advanced: Advanced position sizing\n"
+    )
+    embed2.add_field(name="\u200b", value=optimization_text, inline=False)
+    
+    await ctx.send(embed=embed2)
 
 @bot.command(name='price')
 async def get_price(ctx, symbol: str):
