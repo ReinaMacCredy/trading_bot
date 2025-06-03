@@ -12,6 +12,15 @@ from bot import create_signal_embed  # Only import the create_signal_embed funct
 from datetime import datetime
 import random
 import ccxt
+import json
+
+# Import optimization components
+from src.trading.optimization_manager import OptimizationManager
+from src.trading.parameter_optimizer import ParameterOptimizer
+from src.trading.multi_indicator_strategy import MultiIndicatorStrategy
+from src.trading.genetic_optimizer import GeneticOptimizer
+from src.trading.ml_optimizer import MLOptimizer
+from src.trading.risk_manager import DynamicRiskManager
 
 # Configure logging
 logging.basicConfig(
@@ -43,6 +52,7 @@ intents.message_content = True
 
 bot = commands.Bot(command_prefix='b!', intents=intents)
 trading_bot = None
+optimization_manager = None
 
 # Add command cooldown management
 from discord.ext.commands import cooldown, BucketType
@@ -110,12 +120,18 @@ def is_duplicate_signal(symbol, strategy_code, window_seconds=180):
 @bot.event
 async def on_ready():
     logger.info(f'{bot.user} has connected to Discord!')
-    global trading_bot
+    global trading_bot, optimization_manager
     try:
         trading_bot = TradingBot()
         logger.info("Trading bot initialized successfully")
+        
+        # Initialize optimization manager
+        optimization_manager = OptimizationManager(
+            exchange_client=trading_bot.client if hasattr(trading_bot, 'client') else None
+        )
+        logger.info("Optimization manager initialized successfully")
     except Exception as e:
-        logger.error(f"Failed to initialize trading bot: {e}")
+        logger.error(f"Failed to initialize bot components: {e}")
         traceback.print_exc()
 
 @bot.command(name='price')
@@ -1300,6 +1316,271 @@ async def list_exchanges(ctx):
     except Exception as e:
         logger.error(f"Error in list_exchanges command: {str(e)}")
         await ctx.send(f"An error occurred while listing exchanges: {str(e)}")
+
+@bot.command(name='optimize_params')
+@cooldown(1, 60, BucketType.user)  # Limit to once per minute per user
+async def optimize_parameters(ctx, symbol: str = None, timeframe: str = '1h'):
+    """
+    Optimize strategy parameters using grid search.
+    
+    Parameters:
+    - symbol: The cryptocurrency symbol (e.g., BTC, ETH) (optional)
+    - timeframe: Time interval (default: 1h)
+    """
+    if not optimization_manager:
+        await ctx.send("Optimization manager is not initialized. Check logs for details.")
+        return
+    
+    # Prevent concurrent executions
+    if is_command_running(ctx.author.id, "optimize"):
+        await ctx.send("Another optimization command is already running. Please wait for it to complete.")
+        return
+    
+    try:
+        set_command_running(ctx.author.id, "optimize")
+        
+        # Format symbol
+        symbols = []
+        if symbol:
+            symbol = symbol.upper()
+            if not symbol.endswith('/USDT'):
+                symbol = f"{symbol}/USDT"
+            symbols = [symbol]
+        else:
+            # Use default symbols
+            symbols = ['BTC/USDT', 'ETH/USDT']
+        
+        # Send initial message
+        status_msg = await ctx.send(f"⏳ Optimizing strategy parameters for {symbols} on {timeframe} timeframe... This may take a moment.")
+        
+        # Run the optimization
+        params = optimization_manager.run_parameter_optimization(symbols, timeframe)
+        
+        # Format results
+        embed = discord.Embed(title="Parameter Optimization Results", color=0x00ff00)
+        embed.add_field(name="Symbols", value=", ".join(symbols), inline=False)
+        embed.add_field(name="Timeframe", value=timeframe, inline=False)
+        
+        # Add parameters
+        for param_name, param_value in params.items():
+            embed.add_field(name=param_name, value=str(param_value), inline=True)
+        
+        embed.set_footer(text=f"Optimized by {ctx.author.display_name} | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        # Edit the message with results
+        await status_msg.edit(content=None, embed=embed)
+        
+    except Exception as e:
+        await ctx.send(f"Error during parameter optimization: {str(e)}")
+        logger.error(f"Parameter optimization error: {e}")
+        traceback.print_exc()
+    finally:
+        clear_command_running(ctx.author.id, "optimize")
+
+@bot.command(name='genetic_optimize')
+@cooldown(1, 300, BucketType.user)  # Limit to once per 5 minutes per user
+async def genetic_optimization(ctx, symbol: str, timeframe: str = '1h', generations: int = 20):
+    """
+    Optimize strategy using genetic algorithm.
+    
+    Parameters:
+    - symbol: The cryptocurrency symbol (e.g., BTC, ETH)
+    - timeframe: Time interval (default: 1h)
+    - generations: Number of generations (default: 20)
+    """
+    if not optimization_manager:
+        await ctx.send("Optimization manager is not initialized. Check logs for details.")
+        return
+    
+    # Prevent concurrent executions
+    if is_command_running(ctx.author.id, "genetic"):
+        await ctx.send("Another optimization command is already running. Please wait for it to complete.")
+        return
+    
+    try:
+        set_command_running(ctx.author.id, "genetic")
+        
+        # Format symbol
+        symbol = symbol.upper()
+        if not symbol.endswith('/USDT'):
+            symbol = f"{symbol}/USDT"
+        
+        # Limit generations to prevent abuse
+        generations = min(generations, 50)
+        
+        # Send initial message
+        status_msg = await ctx.send(f"⏳ Running genetic optimization for {symbol} on {timeframe} timeframe with {generations} generations... This may take several minutes.")
+        
+        # Configure the genetic optimizer
+        optimization_manager.genetic_optimizer.generations = generations
+        
+        # Run the optimization
+        result = optimization_manager.run_genetic_optimization(symbol, timeframe)
+        
+        # Format results
+        embed = discord.Embed(title="Genetic Algorithm Optimization Results", color=0x00ff00)
+        embed.add_field(name="Symbol", value=symbol, inline=True)
+        embed.add_field(name="Timeframe", value=timeframe, inline=True)
+        embed.add_field(name="Generations", value=generations, inline=True)
+        embed.add_field(name="Best Fitness", value=f"{result['best_fitness']:.4f}", inline=True)
+        embed.add_field(name="Elapsed Time", value=f"{result['elapsed_time']:.2f}s", inline=True)
+        
+        # Add best parameters
+        embed.add_field(name="Best Parameters", value="", inline=False)
+        for param_name, param_value in result['best_params'].items():
+            embed.add_field(name=param_name, value=str(param_value), inline=True)
+        
+        embed.set_footer(text=f"Optimized by {ctx.author.display_name} | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        # Edit the message with results
+        await status_msg.edit(content=None, embed=embed)
+        
+    except Exception as e:
+        await ctx.send(f"Error during genetic optimization: {str(e)}")
+        logger.error(f"Genetic optimization error: {e}")
+        traceback.print_exc()
+    finally:
+        clear_command_running(ctx.author.id, "genetic")
+
+@bot.command(name='market_regime')
+@cooldown(1, 30, BucketType.user)
+async def detect_market_regime(ctx, symbol: str, timeframe: str = '1h'):
+    """
+    Detect the current market regime and get optimized parameters.
+    
+    Parameters:
+    - symbol: The cryptocurrency symbol (e.g., BTC, ETH)
+    - timeframe: Time interval (default: 1h)
+    """
+    if not optimization_manager:
+        await ctx.send("Optimization manager is not initialized. Check logs for details.")
+        return
+    
+    try:
+        # Format symbol
+        symbol = symbol.upper()
+        if not symbol.endswith('/USDT'):
+            symbol = f"{symbol}/USDT"
+        
+        # Send initial message
+        status_msg = await ctx.send(f"⏳ Analyzing market regime for {symbol} on {timeframe} timeframe...")
+        
+        # Get market regime
+        regime_info = optimization_manager.get_market_regime(symbol, timeframe)
+        
+        # Format results
+        embed = discord.Embed(title=f"Market Regime Analysis: {symbol}", color=0x00ff00)
+        
+        # Add regime details
+        regime_name = regime_info.get('regime_name', 'Unknown')
+        color = {
+            'Ranging': 0xffff00,  # Yellow
+            'Trending Up': 0x00ff00,  # Green 
+            'Trending Down': 0xff0000,  # Red
+            'Volatile': 0xffa500   # Orange
+        }.get(regime_name, 0x808080)  # Default gray
+        
+        embed.color = color
+        embed.add_field(name="Market Regime", value=regime_name, inline=False)
+        
+        # Add technical indicators
+        embed.add_field(name="Volatility", value=f"{regime_info.get('volatility', 0):.4f}", inline=True)
+        embed.add_field(name="Trend Strength", value=f"{regime_info.get('trend_strength', 0):.4f}", inline=True)
+        embed.add_field(name="Volume Ratio", value=f"{regime_info.get('volume_ratio', 0):.2f}", inline=True)
+        embed.add_field(name="RSI", value=f"{regime_info.get('rsi', 0):.2f}", inline=True)
+        embed.add_field(name="MACD", value=f"{regime_info.get('macd', 0):.4f}", inline=True)
+        embed.add_field(name="EMA Ratio", value=f"{regime_info.get('ema_ratio', 0):.4f}", inline=True)
+        
+        embed.set_footer(text=f"Analyzed by {ctx.author.display_name} | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        # Edit the message with results
+        await status_msg.edit(content=None, embed=embed)
+        
+        # Now optimize for current regime
+        await status_msg.edit(content="⏳ Optimizing parameters for current market conditions...", embed=embed)
+        
+        # Get optimized parameters
+        params_result = optimization_manager.optimize_for_market_conditions(symbol, timeframe)
+        
+        # Create parameters embed
+        params_embed = discord.Embed(title=f"Optimized Parameters for {symbol} ({regime_name})", color=color)
+        
+        if 'parameters' in params_result:
+            for param_name, param_value in params_result['parameters'].items():
+                params_embed.add_field(name=param_name, value=str(param_value), inline=True)
+        else:
+            params_embed.add_field(name="Error", value="Could not optimize parameters", inline=False)
+        
+        params_embed.set_footer(text=f"Optimized by {ctx.author.display_name} | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        # Send optimized parameters
+        await ctx.send(embed=params_embed)
+        
+    except Exception as e:
+        await ctx.send(f"Error analyzing market regime: {str(e)}")
+        logger.error(f"Market regime analysis error: {e}")
+        traceback.print_exc()
+
+@bot.command(name='position_size_advanced')
+@cooldown(1, 10, BucketType.user)
+async def advanced_position_size(ctx, symbol: str, account_balance: float = 1000.0, risk_percent: float = 2.0):
+    """
+    Calculate optimal position size using dynamic risk management.
+    
+    Parameters:
+    - symbol: The cryptocurrency symbol (e.g., BTC, ETH)
+    - account_balance: Your account balance in USDT (default: 1000.0)
+    - risk_percent: Risk percentage (default: 2.0)
+    """
+    if not optimization_manager:
+        await ctx.send("Optimization manager is not initialized. Check logs for details.")
+        return
+    
+    try:
+        # Format symbol
+        symbol = symbol.upper()
+        if not symbol.endswith('/USDT'):
+            symbol = f"{symbol}/USDT"
+        
+        # Send initial message
+        status_msg = await ctx.send(f"⏳ Calculating optimal position size for {symbol} with {risk_percent}% risk...")
+        
+        # Calculate position size with advanced risk management
+        position = optimization_manager.calculate_position_size(symbol, account_balance, risk_percent)
+        
+        # Format results
+        embed = discord.Embed(title=f"Advanced Position Size: {symbol}", color=0x00ff00)
+        
+        if 'error' in position:
+            embed.color = 0xff0000  # Red for error
+            embed.add_field(name="Error", value=position['error'], inline=False)
+        else:
+            # Add position details
+            embed.add_field(name="Account Balance", value=f"${account_balance:.2f}", inline=True)
+            embed.add_field(name="Risk Percentage", value=f"{position['risk_percent']:.2f}%", inline=True)
+            embed.add_field(name="Risk Amount", value=f"${position['risk_amount']:.2f}", inline=True)
+            
+            embed.add_field(name="Current Price", value=f"${position['current_price']:.2f}", inline=True)
+            embed.add_field(name="Entry Price", value=f"${position['entry_price']:.2f}", inline=True)
+            
+            embed.add_field(name="Stop Loss", value=f"${position['stop_loss']:.2f}", inline=True)
+            embed.add_field(name="Take Profit", value=f"${position['take_profit']:.2f}", inline=True)
+            embed.add_field(name="Risk/Reward Ratio", value=f"{position['risk_reward']:.2f}", inline=True)
+            
+            embed.add_field(name="Position Size", value=f"{position['size']:.6f} {symbol.split('/')[0]}", inline=False)
+            embed.add_field(name="Position Value", value=f"${position['value']:.2f}", inline=True)
+            
+            embed.add_field(name="Signal", value=position['signal'], inline=True)
+        
+        embed.set_footer(text=f"Calculated by {ctx.author.display_name} | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        # Edit the message with results
+        await status_msg.edit(content=None, embed=embed)
+        
+    except Exception as e:
+        await ctx.send(f"Error calculating position size: {str(e)}")
+        logger.error(f"Position size calculation error: {e}")
+        traceback.print_exc()
 
 def run_bot():
     """Run the Discord bot"""

@@ -1,0 +1,26 @@
+trading:
+  risk_percentage: 2.0
+  max_positions: 5
+  max_daily_loss: 5.0
+  trailing_stop: 1.5
+  indicators:
+    rsi_period: 14
+    macd_fast: 12
+    macd_slow: 26
+    macd_signal: 9
+    ema_periods: [12, 26, 50, 200]
+
+discord:
+  command_prefix: "b!"
+  embed_color: 0x7CFC00
+  cooldown_seconds: 10
+  cooldown_market_signals: 15
+
+security:
+  encryption_enabled: false  # Set to true when implementing encryption
+
+database:
+  use_database: false  # Set to true when implementing database
+  type: "sqlite"  # Options: sqlite, postgresql
+  connection_string: "sqlite:///trading_bot.db"  # For SQLite
+  # connection_string: "postgresql://user:password@localhost:5432/trading_bot"  # For PostgreSQL 

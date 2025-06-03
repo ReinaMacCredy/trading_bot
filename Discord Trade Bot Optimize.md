@@ -1,355 +1,436 @@
-# Cải Tiến Code Discord Trading Bot
+# Tối Ưu Hóa Code Cho Chiến Lược Giao Dịch
 
-Dựa trên cấu trúc project hiện tại của bạn, tôi sẽ đưa ra các gợi ý cải tiến cụ thể để tối ưu hóa performance, bảo mật và khả năng mở rộng.
+Việc tối ưu hóa code trading bot đòi hỏi một cách tiếp cận có hệ thống để cải thiện hiệu suất, độ chính xác và khả năng thích ứng với thị trường. Dựa trên các phương pháp proven và best practices, đây là hướng dẫn chi tiết để tối ưu hóa chiến lược của bạn.
 
-## Tối Ưu Hóa Cấu Trúc Code
+## Tối Ưu Hóa Parameters Tự Động
 
-### **Modularization và Clean Architecture**
+### **Parameter Optimization Framework**
 
-Cấu trúc hiện tại đã khá tốt với việc tách riêng `indicators.py`, `strategies.py`, và `trading.py`. Tuy nhiên, bạn nên:
-
-- Tạo thư mục `src/` để chứa toàn bộ source code
-- Chia nhỏ `bot.py` thành các modules: `commands/`, `events/`, `utils/`
-- Tạo `config/` folder để quản lý settings
-- Thêm `tests/` folder cho unit testing
-
-```
-src/
-├── bot/
-│   ├── commands/
-│   ├── events/
-│   └── cogs/
-├── trading/
-│   ├── indicators.py
-│   ├── strategies.py
-│   └── exchanges/
-├── utils/
-└── config/
-```
-
-### **Configuration Management**
-
-Thay vì hardcode các parameters, tạo `config.yml` để dễ dàng điều chỉnh:
-
-```yaml
-trading:
-  risk_percentage: 2.0
-  max_positions: 5
-  indicators:
-    rsi_period: 14
-    macd_fast: 12
-    macd_slow: 26
-    ema_periods: [12, 26, 50]
-
-discord:
-  command_prefix: "!"
-  embed_color: 0x00ff00
-```
-
-## Tối Ưu Memory và Performance
-
-### **Database Integration**
-
-Từ search results, việc lưu trữ dữ liệu trong memory có thể gây crash khi bot lớn[5]. Thay vì cache everything, sử dụng PostgreSQL hoặc SQLite:
+Thay vì điều chỉnh parameters thủ công, implement hệ thống tự động optimize như trong search results[2]. Tạo một scheduler chạy vào thời điểm cố định (ví dụ thứ 2 hàng tuần) để tối ưu stop-loss và take-profit distances dựa trên dữ liệu gần nhất:
 
 ```python
-# Thay vì lưu dict trong memory
-user_positions = {}  # Tránh
+import schedule
+import time
+from datetime import datetime
 
-# Sử dụng database
-async def get_user_positions(user_id):
-    return await db.fetch_user_positions(user_id)
-```
-
-### **Async Operations và Rate Limiting**
-
-Implement proper async handling và rate limiting để tránh API throttling:
-
-```python
-import asyncio
-from asyncio import Semaphore
-
-class RateLimiter:
-    def __init__(self, max_requests=10, per_seconds=60):
-        self.semaphore = Semaphore(max_requests)
-        self.requests = []
-        self.per_seconds = per_seconds
-```
-
-### **Caching Strategy**
-
-Sử dụng Redis hoặc in-memory cache có TTL cho dữ liệu thường xuyên truy cập:
-
-```python
-from functools import lru_cache
-from datetime import datetime, timedelta
-
-@lru_cache(maxsize=100)
-def get_market_data(symbol, timeframe):
-    # Cache market data for 5 minutes
-    pass
-```
-
-## Error Handling và Logging
-
-### **Structured Logging**
-
-Cải tiến logging system để debug và monitor hiệu quả hơn:
-
-```python
-import structlog
-import logging.config
-
-logger = structlog.get_logger()
-
-# Log với context
-logger.info("Trade executed", 
-           symbol="BTCUSDT", 
-           side="BUY", 
-           amount=0.01,
-           price=45000)
-```
-
-### **Circuit Breaker Pattern**
-
-Implement circuit breaker để tránh cascade failures:
-
-```python
-class CircuitBreaker:
-    def __init__(self, failure_threshold=5, timeout=60):
-        self.failure_count = 0
-        self.failure_threshold = failure_threshold
-        self.timeout = timeout
-        self.last_failure_time = None
-        self.state = "CLOSED"  # CLOSED, OPEN, HALF_OPEN
-```
-
-## Security Enhancements
-
-### **API Key Management**
-
-Cải tiến việc quản lý API keys với encryption:
-
-```python
-from cryptography.fernet import Fernet
-import os
-
-class SecureConfig:
+class ParameterOptimizer:
     def __init__(self):
-        self.key = os.environ.get('ENCRYPTION_KEY', Fernet.generate_key())
-        self.cipher = Fernet(self.key)
-    
-    def encrypt_api_key(self, api_key):
-        return self.cipher.encrypt(api_key.encode())
-    
-    def decrypt_api_key(self, encrypted_key):
-        return self.cipher.decrypt(encrypted_key).decode()
+        self.optimization_window = 14  # 2 weeks
+        self.trading_window = 7       # 1 week
+        
+    def optimize_parameters(self):
+        """Tối ưu parameters dựa trên dữ liệu recent"""
+        recent_data = self.fetch_recent_data(self.optimization_window)
+        
+        # Grid search cho optimal parameters
+        best_params = self.grid_search_optimization(recent_data)
+        
+        # Update bot với parameters mới
+        self.update_bot_parameters(best_params)
+        
+        logger.info(f"Parameters optimized: {best_params}")
+        
+    def grid_search_optimization(self, data):
+        """Grid search để tìm optimal stop-loss và take-profit"""
+        best_return = -float('inf')
+        best_params = {}
+        
+        for sl_atr in [0.5, 1.0, 1.5, 2.0]:
+            for tp_ratio in [1.5, 2.0, 2.5, 3.0]:
+                returns = self.backtest_parameters(data, sl_atr, tp_ratio)
+                if returns > best_return:
+                    best_return = returns
+                    best_params = {'sl_atr': sl_atr, 'tp_ratio': tp_ratio}
+                    
+        return best_params
+
+# Schedule optimization job
+schedule.every().monday.at("07:00").do(optimizer.optimize_parameters)
 ```
 
-### **Input Validation**
+## Kết Hợp Multi-Indicator Strategy
 
-Thêm validation cho user inputs để tránh injection attacks:
+### **RSI + MACD + EMA Combo Optimization**
+
+Dựa trên strategy từ search results[4], implement logic kết hợp để giảm false signals và tăng accuracy:
 
 ```python
-from pydantic import BaseModel, validator
-
-class TradeCommand(BaseModel):
-    symbol: str
-    amount: float
-    side: str
-    
-    @validator('symbol')
-    def validate_symbol(cls, v):
-        if not v.isalnum():
-            raise ValueError('Invalid symbol')
-        return v.upper()
+class MultiIndicatorStrategy:
+    def __init__(self, rsi_period=14, macd_fast=12, macd_slow=26, 
+                 macd_signal=9, ema_periods=[9, 21, 50]):
+        self.rsi_period = rsi_period
+        self.macd_fast = macd_fast
+        self.macd_slow = macd_slow
+        self.macd_signal = macd_signal
+        self.ema_periods = ema_periods
+        
+    def generate_signal(self, df):
+        """Tạo signal dựa trên consensus của các indicators"""
+        
+        # Calculate indicators
+        rsi = self.calculate_rsi(df, self.rsi_period)
+        macd_line, signal_line, histogram = self.calculate_macd(df)
+        ema_9 = df['close'].ewm(span=9).mean()
+        ema_21 = df['close'].ewm(span=21).mean()
+        ema_50 = df['close'].ewm(span=50).mean()
+        
+        # Buy conditions từ search results[4]
+        buy_conditions = [
+            rsi.iloc[-1] > 50,  # RSI bullish momentum
+            macd_line.iloc[-1] > signal_line.iloc[-1],  # MACD bullish crossover
+            df['close'].iloc[-1] > ema_50.iloc[-1],  # Price above EMA trend
+            df['volume'].iloc[-1] > df['volume'].rolling(20).mean().iloc[-1]  # Volume confirmation
+        ]
+        
+        # Sell conditions
+        sell_conditions = [
+            rsi.iloc[-1]  df['volume'].rolling(20).mean().iloc[-1]  # Volume confirmation
+        ]
+        
+        # Consensus logic - cần ít nhất 3/4 conditions
+        if sum(buy_conditions) >= 3:
+            return 'BUY'
+        elif sum(sell_conditions) >= 3:
+            return 'SELL'
+        else:
+            return 'HOLD'
 ```
 
-## Trading Logic Improvements
+## Genetic Algorithm Optimization
 
-### **Risk Management Enhancement**
+### **Advanced Parameter Evolution**
 
-Implement advanced risk management dựa trên search results[2][6]:
+Implement Genetic Algorithm như trong search results[10] để tối ưu hóa toàn bộ strategy parameters:
 
 ```python
-class RiskManager:
-    def __init__(self, max_daily_loss=0.05, max_positions=10):
-        self.max_daily_loss = max_daily_loss
-        self.max_positions = max_positions
-        self.daily_pnl = 0
+import random
+from deap import base, creator, tools, algorithms
+
+class GeneticOptimizer:
+    def __init__(self, population_size=50, generations=100):
+        self.population_size = population_size
+        self.generations = generations
+        self.setup_genetic_algorithm()
         
-    async def can_open_position(self, risk_amount):
-        # Check daily loss limit
-        if abs(self.daily_pnl) >= self.max_daily_loss:
-            return False
+    def setup_genetic_algorithm(self):
+        """Setup DEAP genetic algorithm framework"""
+        creator.create("FitnessMax", base.Fitness, weights=(1.0,))
+        creator.create("Individual", list, fitness=creator.FitnessMax)
         
-        # Check position count
-        open_positions = await self.get_open_positions_count()
-        if open_positions >= self.max_positions:
+        self.toolbox = base.Toolbox()
+        
+        # Define parameter ranges
+        self.toolbox.register("rsi_period", random.randint, 10, 20)
+        self.toolbox.register("macd_fast", random.randint, 8, 15)
+        self.toolbox.register("macd_slow", random.randint, 20, 30)
+        self.toolbox.register("ema_short", random.randint, 5, 15)
+        self.toolbox.register("ema_long", random.randint, 20, 50)
+        
+        # Create individual
+        self.toolbox.register("individual", tools.initCycle, creator.Individual,
+                             (self.toolbox.rsi_period, self.toolbox.macd_fast, 
+                              self.toolbox.macd_slow, self.toolbox.ema_short, 
+                              self.toolbox.ema_long), n=1)
+        
+        self.toolbox.register("population", tools.initRepeat, list, 
+                             self.toolbox.individual)
+        
+    def evaluate_individual(self, individual):
+        """Evaluate strategy performance với parameters từ individual"""
+        rsi_period, macd_fast, macd_slow, ema_short, ema_long = individual
+        
+        # Backtest strategy với parameters này
+        strategy = MultiIndicatorStrategy(
+            rsi_period=rsi_period,
+            macd_fast=macd_fast,
+            macd_slow=macd_slow,
+            ema_periods=[ema_short, ema_long]
+        )
+        
+        performance = self.backtest_strategy(strategy)
+        return (performance['sharpe_ratio'],)  # Fitness function
+        
+    def optimize(self):
+        """Chạy genetic algorithm optimization"""
+        self.toolbox.register("evaluate", self.evaluate_individual)
+        self.toolbox.register("mate", tools.cxTwoPoint)
+        self.toolbox.register("mutate", tools.mutUniformInt, 
+                             low=[10,8,20,5,20], up=[20,15,30,15,50], indpb=0.2)
+        self.toolbox.register("select", tools.selTournament, tournsize=3)
+        
+        population = self.toolbox.population(n=self.population_size)
+        
+        # Run evolution
+        result = algorithms.eaSimple(
+            population, self.toolbox, 
+            cxpb=0.7, mutpb=0.2, 
+            ngen=self.generations, 
+            verbose=True
+        )
+        
+        # Return best individual
+        best_ind = tools.selBest(population, 1)[0]
+        return best_ind
+```
+
+## AI-Powered Optimization
+
+### **Machine Learning Parameter Tuning**
+
+Tích hợp machine learning như trong search results[9] để dynamic optimization:
+
+```python
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import TimeSeriesSplit
+import numpy as np
+
+class MLOptimizer:
+    def __init__(self):
+        self.model = RandomForestRegressor(n_estimators=100, random_state=42)
+        self.feature_columns = [
+            'rsi_period', 'macd_fast', 'macd_slow', 'ema_short', 'ema_long',
+            'volatility', 'trend_strength', 'market_regime'
+        ]
+        
+    def prepare_features(self, market_data):
+        """Chuẩn bị features cho ML model"""
+        features = []
+        
+        # Market regime features
+        volatility = market_data['close'].rolling(20).std()
+        trend_strength = abs(market_data['close'].pct_change(20))
+        
+        # Parameter combinations để test
+        param_combinations = self.generate_parameter_combinations()
+        
+        for params in param_combinations:
+            feature_row = list(params) + [
+                volatility.iloc[-1],
+                trend_strength.iloc[-1],
+                self.detect_market_regime(market_data)
+            ]
+            features.append(feature_row)
+            
+        return np.array(features)
+        
+    def detect_market_regime(self, data):
+        """Detect market regime: 0=ranging, 1=trending, 2=volatile"""
+        recent_data = data.tail(50)
+        volatility = recent_data['close'].std()
+        trend = abs(recent_data['close'].iloc[-1] - recent_data['close'].iloc[0])
+        
+        if volatility > recent_data['close'].mean() * 0.05:
+            return 2  # Volatile
+        elif trend > recent_data['close'].mean() * 0.03:
+            return 1  # Trending
+        else:
+            return 0  # Ranging
+            
+    def optimize_for_regime(self, market_data):
+        """Optimize parameters dựa trên current market regime"""
+        features = self.prepare_features(market_data)
+        
+        # Predict best parameters cho current market conditions
+        predictions = self.model.predict(features)
+        best_idx = np.argmax(predictions)
+        
+        param_combinations = self.generate_parameter_combinations()
+        return param_combinations[best_idx]
+```
+
+## Dynamic Risk Management
+
+### **ATR-Based Position Sizing**
+
+Implement dynamic risk management như trong search results[11]:
+
+```python
+class DynamicRiskManager:
+    def __init__(self, max_risk_per_trade=0.02, atr_period=14):
+        self.max_risk_per_trade = max_risk_per_trade
+        self.atr_period = atr_period
+        
+    def calculate_position_size(self, df, entry_price, account_balance):
+        """Calculate optimal position size dựa trên ATR và risk tolerance"""
+        
+        # Calculate ATR
+        atr = self.calculate_atr(df, self.atr_period)
+        current_atr = atr.iloc[-1]
+        
+        # Dynamic stop loss dựa trên ATR
+        stop_loss_distance = current_atr * 1.5  # 1.5x ATR cho stop loss
+        
+        # Calculate position size
+        risk_amount = account_balance * self.max_risk_per_trade
+        position_size = risk_amount / stop_loss_distance
+        
+        return {
+            'position_size': position_size,
+            'stop_loss': entry_price - stop_loss_distance,
+            'take_profit': entry_price + (stop_loss_distance * 2),  # 2:1 RR ratio
+            'atr_value': current_atr
+        }
+        
+    def calculate_atr(self, df, period):
+        """Calculate Average True Range"""
+        high_low = df['high'] - df['low']
+        high_close = np.abs(df['high'] - df['close'].shift())
+        low_close = np.abs(df['low'] - df['close'].shift())
+        
+        ranges = pd.concat([high_low, high_close, low_close], axis=1)
+        true_range = ranges.max(axis=1)
+        
+        return true_range.rolling(period).mean()
+```
+
+## Backtesting và Walk Forward Analysis
+
+### **Robust Performance Validation**
+
+Implement comprehensive backtesting framework như đề cập trong search results[1]:
+
+```python
+class AdvancedBacktester:
+    def __init__(self, initial_capital=10000):
+        self.initial_capital = initial_capital
+        self.results = []
+        
+    def walk_forward_analysis(self, data, strategy, optimization_window=500, 
+                            trading_window=100):
+        """Walk forward analysis để validate strategy robustness"""
+        
+        total_periods = len(data)
+        results = []
+        
+        for start in range(optimization_window, total_periods, trading_window):
+            # Optimization period
+            opt_start = start - optimization_window
+            opt_end = start
+            opt_data = data.iloc[opt_start:opt_end]
+            
+            # Trading period
+            trade_end = min(start + trading_window, total_periods)
+            trade_data = data.iloc[start:trade_end]
+            
+            # Optimize strategy trên optimization data
+            optimized_params = self.optimize_strategy(strategy, opt_data)
+            
+            # Test trên trading data
+            strategy.update_parameters(optimized_params)
+            period_results = self.backtest_period(strategy, trade_data)
+            
+            results.append({
+                'period': f"{start}-{trade_end}",
+                'returns': period_results['total_return'],
+                'sharpe': period_results['sharpe_ratio'],
+                'max_drawdown': period_results['max_drawdown'],
+                'params': optimized_params
+            })
+            
+        return results
+        
+    def calculate_performance_metrics(self, trades):
+        """Calculate comprehensive performance metrics"""
+        if not trades:
+            return {}
+            
+        returns = [trade['pnl_pct'] for trade in trades]
+        
+        total_return = np.prod([1 + r for r in returns]) - 1
+        sharpe_ratio = np.mean(returns) / np.std(returns) * np.sqrt(252) if np.std(returns) > 0 else 0
+        
+        # Maximum Drawdown
+        cumulative = np.cumprod([1 + r for r in returns])
+        running_max = np.maximum.accumulate(cumulative)
+        drawdown = (cumulative - running_max) / running_max
+        max_drawdown = np.min(drawdown)
+        
+        # Win rate
+        winning_trades = [r for r in returns if r > 0]
+        win_rate = len(winning_trades) / len(returns) if returns else 0
+        
+        # Profit factor
+        gross_profit = sum([r for r in returns if r > 0])
+        gross_loss = abs(sum([r for r in returns if r  0 else float('inf')
+        
+        return {
+            'total_return': total_return,
+            'sharpe_ratio': sharpe_ratio,
+            'max_drawdown': max_drawdown,
+            'win_rate': win_rate,
+            'profit_factor': profit_factor,
+            'total_trades': len(trades)
+        }
+```
+
+## Implementation Best Practices
+
+### **Continuous Optimization Loop**
+
+Tạo một hệ thống continuous improvement như trong search results[2]:
+
+```python
+class ContinuousOptimizer:
+    def __init__(self, strategy):
+        self.strategy = strategy
+        self.performance_history = []
+        self.optimization_frequency = 7  # days
+        
+    async def run_optimization_loop(self):
+        """Main optimization loop chạy liên tục"""
+        while True:
+            try:
+                # Collect recent performance data
+                recent_performance = await self.collect_performance_data()
+                
+                # Check if optimization is needed
+                if self.should_optimize(recent_performance):
+                    logger.info("Triggering strategy optimization...")
+                    
+                    # Run optimization
+                    new_params = await self.run_optimization()
+                    
+                    # Validate parameters
+                    if self.validate_parameters(new_params):
+                        await self.update_strategy(new_params)
+                        logger.info(f"Strategy updated with params: {new_params}")
+                    
+                # Sleep until next check
+                await asyncio.sleep(3600)  # Check hourly
+                
+            except Exception as e:
+                logger.error(f"Optimization loop error: {e}")
+                await asyncio.sleep(1800)  # Wait 30 minutes before retry
+                
+    def should_optimize(self, performance):
+        """Determine khi nào cần optimize"""
+        if len(self.performance_history) < 10:
             return False
             
-        return True
+        # Optimize nếu performance giảm liên tục
+        recent_trend = np.polyfit(range(10), self.performance_history[-10:], 1)[0]
+        return recent_trend < -0.001  # Negative trend threshold
 ```
 
-### **Strategy Pattern Implementation**
+Những cải tiến này sẽ giúp bot của bạn tự động thích ứng với thị trường thay đổi, tối ưu hóa parameters liên tục, và duy trì performance ổn định qua thời gian. Quan trọng là implement từng phần một và monitor kỹ càng để đảm bảo hệ thống hoạt động đúng như mong đợi.
 
-Refactor strategies để dễ extend và test:
-
-```python
-from abc import ABC, abstractmethod
-
-class TradingStrategy(ABC):
-    @abstractmethod
-    async def generate_signal(self, market_data):
-        pass
-    
-    @abstractmethod
-    def get_risk_parameters(self):
-        pass
-
-class MACDStrategy(TradingStrategy):
-    def __init__(self, fast=12, slow=26, signal=9):
-        self.fast = fast
-        self.slow = slow
-        self.signal = signal
-```
-
-## Monitoring và Alerting
-
-### **Health Checks**
-
-Thêm health check endpoints để monitor bot status:
-
-```python
-@bot.command()
-async def health(ctx):
-    health_status = {
-        "api_status": await check_exchange_connection(),
-        "db_status": await check_database_connection(),
-        "memory_usage": psutil.virtual_memory().percent,
-        "active_positions": await get_positions_count()
-    }
-    
-    embed = discord.Embed(title="Bot Health Status")
-    for key, value in health_status.items():
-        embed.add_field(name=key, value=value)
-    
-    await ctx.send(embed=embed)
-```
-
-### **Performance Metrics**
-
-Track và report performance metrics:
-
-```python
-import time
-from functools import wraps
-
-def track_performance(func):
-    @wraps(func)
-    async def wrapper(*args, **kwargs):
-        start_time = time.time()
-        result = await func(*args, **kwargs)
-        execution_time = time.time() - start_time
-        
-        logger.info("Function performance", 
-                   function=func.__name__,
-                   execution_time=execution_time)
-        return result
-    return wrapper
-```
-
-## Deployment và DevOps
-
-### **Docker Configuration**
-
-Tạo `Dockerfile` cho consistent deployment:
-
-```dockerfile
-FROM python:3.11-alpine
-
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-
-COPY src/ ./src/
-CMD ["python", "src/main.py"]
-```
-
-### **CI/CD Pipeline**
-
-Thêm GitHub Actions cho automated testing và deployment:
-
-```yaml
-name: Deploy Trading Bot
-on:
-  push:
-    branches: [main]
-    
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Run tests
-        run: python -m pytest tests/
-```
-
-## Best Practices Implementation
-
-### **Graceful Shutdown**
-
-Implement proper shutdown handling:
-
-```python
-import signal
-import asyncio
-
-class BotManager:
-    def __init__(self):
-        self.running = True
-        signal.signal(signal.SIGTERM, self.signal_handler)
-        signal.signal(signal.SIGINT, self.signal_handler)
-    
-    def signal_handler(self, signum, frame):
-        logger.info("Shutdown signal received")
-        self.running = False
-        
-    async def cleanup(self):
-        # Close all positions
-        # Save state to database
-        # Close connections
-        pass
-```
-
-### **Testing Framework**
-
-Thêm comprehensive testing:
-
-```python
-import pytest
-from unittest.mock import AsyncMock
-
-@pytest.mark.asyncio
-async def test_macd_strategy():
-    strategy = MACDStrategy()
-    mock_data = create_mock_market_data()
-    
-    signal = await strategy.generate_signal(mock_data)
-    assert signal in ['BUY', 'SELL', 'HOLD']
-```
-
-Những cải tiến này sẽ giúp bot của bạn ổn định hơn, dễ maintain và scale được khi số lượng user tăng lên[5]. Quan trọng nhất là implement từng phần một và test kỹ càng trước khi deploy production.
-
-Sources
-[1] image.jpg https://pplx-res.cloudinary.com/image/upload/v1748851772/user_uploads/53744298/3ad5006a-7329-40eb-bf8a-81c9d12f6d91/image.jpg
-[2] Ultimate RSI Strategy [PrismBot] [Lite] - TradingView https://www.tradingview.com/script/j5sUO3tX-Ultimate-RSI-Strategy-PrismBot-Lite/
-[3] Automated Crypto Trading Bot with Python: Step-by-step Tutorial https://www.youtube.com/watch?v=IGV7KoSxYr8
-[4] EMA Trading Bot - Bidsbee.com https://www.bidsbee.com/bots/ema-bot
-[5] Optimizing my bot code. : r/Discord_Bots - Reddit https://www.reddit.com/r/Discord_Bots/comments/138i5nv/optimizing_my_bot_code/
-[6] Automating an 86% Winning MACD Trading Strategy - (MQL5 series) https://www.youtube.com/watch?v=YNJkghv-1DI
-[7] How I Built a Full-Stack Crypto Trading Bot in Python (And Why I ... https://dev.to/matrixtrak/how-i-built-a-full-stack-crypto-trading-bot-in-python-and-why-i-wrote-a-250-page-guide-about-it-3g8l
-[8] README.md - reaganmcf/discord-stock-bot - GitHub https://github.com/reaganmcf/discord-stock-bot/blob/master/README.md
-[9] share a profitable trading idea, and I'll create the strategy, indicator ... https://www.reddit.com/r/TradingView/comments/1ihhcwu/share_a_profitable_trading_idea_and_ill_create/
-[10] jimtin/algorithmic_trading_bot: Python Trading Bot for Algorithmic ... https://github.com/jimtin/algorithmic_trading_bot
-[11] Bot — Chỉ báo và Chiến lược - TradingView https://vn.tradingview.com/scripts/bot/
+[1] https://www.quantifiedstrategies.com/trading-strategy-optimization/
+[2] https://www.youtube.com/watch?v=CXuVd3YCS9I
+[3] https://www.alwin.io/best-practices-for-optimizing-your-crypto-trading-bot-in-2024
+[4] https://www.tradingview.com/script/DasYJGIz-RSI-Volume-MACD-EMA-Combo/
+[5] https://wundertrading.com/journal/en/learn/article/macd-trading-bot
+[6] https://www.tradingsim.com/blog/macd
+[7] https://tradefundrr.com/trading-strategy-optimization/
+[8] https://www.youtube.com/watch?v=UOnBJvH1sqg
+[9] https://www.pineconnector.com/blogs/pico-blog/automated-macd-trading-optimizing-returns-with-ai
+[10] https://github.com/imsatoshi/GeneTrader
+[11] https://www.tradingview.com/script/eESlTd8Q-Scalping-15min-EMA-MACD-RSI-ATR-based-SL-TP/
+[12] https://www.youtube.com/watch?v=abvxUhbjJak
+[13] https://www.linkedin.com/pulse/macd-trading-strategy-quantifiedstrategies-igkjf
+[14] https://www.mathworks.com/help/datafeed/optimize-trade-time-trading-strategy.html
+[15] https://www.reddit.com/r/Daytrading/comments/1987qpe/thinking_outside_the_box_when_it_comes_to_trading/
+[16] https://www.reddit.com/r/learnpython/comments/1j30vai/what_is_the_best_way_to_learn_to_code_a_trading/
+[17] https://github.com/RaghavsScarletSplendour/MACDtradingstrategy
+[18] https://www.mindmathmoney.com/articles/the-complete-macd-indicator-trading-guide-master-price-momentum-in-2025
+[19] https://www.amibroker.com/guide/h_optimization.html
+[20] https://coinbureau.com/analysis/how-to-set-up-crypto-trading-bot/
