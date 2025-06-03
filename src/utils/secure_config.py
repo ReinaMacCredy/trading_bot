@@ -4,7 +4,7 @@ import base64
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from src.config import config
+from src.config.config_loader import get_config
 
 logger = logging.getLogger('secure_config')
 
@@ -18,7 +18,8 @@ class SecureConfig:
         Args:
             master_key: Optional master key for encryption, if not provided will use env var or generate
         """
-        self.encryption_enabled = config.get("security", "encryption_enabled", False)
+        config = get_config()
+        self.encryption_enabled = getattr(config, 'encryption_enabled', False)
         
         if not self.encryption_enabled:
             logger.warning("Encryption is disabled. API keys will be stored in plain text.")

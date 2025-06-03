@@ -1,180 +1,299 @@
-# Discord Trading Signal Bot
+# Professional Discord Trading Bot
 
-A Discord bot for cryptocurrency trading signals and analysis. The bot can generate trading signals in a format similar to professional trading channels.
+A professional-grade Discord bot for cryptocurrency trading signals, analysis, and automated trading. Features advanced configuration management, multi-exchange support, and comprehensive technical analysis capabilities.
 
-## Features
+## 🚀 Key Features
 
-- Generate and display trading signals with entry, take profit, and stop loss prices
-- Format signals with customizable parameters including ratio and status
-- Analyze cryptocurrencies using various strategies (MA Crossover, RSI, Bollinger Bands)
-- Generate price charts and strategy-specific visualizations
-- Monitor prices and execute trades (when connected to an exchange)
-- **NEW: Generate real signals based on actual Binance market data**
-- **NEW: Auto-calculate entry, TP, and SL prices based on volatility**
-- **NEW: Multi-exchange support through CCXT integration**
-- **NEW: Professional risk management with position sizing**
-- **NEW: Enhanced technical indicators using pandas-ta library**
-- **NEW: Dual timeframe MACD+RSI strategy for better signal confirmation**
-- **NEW: Advanced order placement with take-profit and stop-loss**
+### **Trading Signals & Analysis**
+- **Real-time signal generation** using live Binance market data
+- **Professional signal formatting** similar to trading channels
+- **Multi-timeframe analysis** with MACD+RSI strategies
+- **Advanced technical indicators** (RSI, MACD, EMA, Bollinger Bands, ATR, Stochastic)
+- **Market regime detection** and adaptive parameters
+- **Volatility-based entry/exit calculations**
 
-## Setup
+### **Risk Management & Optimization**
+- **Dynamic position sizing** based on account balance and risk tolerance
+- **Professional risk management** with stop-loss and take-profit automation
+- **Parameter optimization** using genetic algorithms and grid search
+- **Real-time market condition analysis**
+- **Advanced order placement** with multiple order types
 
-1. Clone this repository
-2. Install required dependencies:
+### **Configuration & Architecture**
+- **Professional configuration management** with YAML + environment variables
+- **Modular architecture** with clean separation of concerns
+- **Multi-exchange support** through CCXT integration
+- **Comprehensive logging** and error handling
+- **Database integration** for signal storage and analysis
+
+### **Advanced Features**
+- **Backtesting capabilities** for strategy validation
+- **Paper trading mode** for safe testing
+- **Machine learning optimization** (optional)
+- **Performance tracking** and analytics
+- **Security features** with encrypted API key storage
+
+## 🏗️ Architecture
+
+```
+trading_bot/
+├── src/
+│   ├── config/           # Configuration management
+│   │   ├── config_loader.py  # Smart config loader
+│   │   └── config.yml        # Main configuration
+│   ├── bot/              # Discord bot core
+│   ├── trading/          # Trading engine
+│   │   ├── strategies.py     # Trading strategies
+│   │   ├── indicators.py     # Technical indicators
+│   │   ├── optimization_manager.py  # Parameter optimization
+│   │   └── risk_manager.py   # Risk management
+│   └── utils/            # Utilities
+├── memory-bank/          # Project documentation
+├── main.py              # Bot entry point
+└── requirements.txt     # Dependencies
+```
+
+## 🛠️ Setup & Installation
+
+### **Prerequisites**
+- Python 3.9+
+- Discord Bot Token
+- Binance API credentials (optional for demo mode)
+
+### **Installation**
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd discord_bot/trading_bot
    ```
+
+2. **Install dependencies**
+   ```bash
    pip install -r requirements.txt
    ```
-3. Create a `.env` file with the following variables:
+
+3. **Configure environment variables**
+   ```bash
+   cp env.example .env
+   # Edit .env with your credentials
    ```
-   DISCORD_TOKEN=your_discord_bot_token
-   DISCORD_CHANNEL_ID=your_channel_id
-   BINANCE_API_KEY=your_binance_api_key
-   BINANCE_API_SECRET=your_binance_api_secret
+
+4. **Configure bot settings** (optional)
+   ```bash
+   # Edit src/config/config.yml for custom parameters
    ```
-   - Note: If you don't provide Binance API credentials, the bot will run in demo mode with simulated market data.
 
-## Running the Bot
+### **Environment Variables**
 
+```env
+# Discord Configuration
+DISCORD_TOKEN=your_discord_bot_token
+
+# Exchange API Configuration  
+BINANCE_API_KEY=your_binance_api_key
+BINANCE_SECRET=your_binance_secret
+EXCHANGE_SANDBOX=true
+
+# Trading Configuration
+MAX_RISK_PER_TRADE=0.02
+MAX_DAILY_LOSS=0.05
+ENABLE_PAPER_TRADING=true
+
+# Environment Settings
+ENVIRONMENT=development
+LOG_LEVEL=INFO
 ```
-python main.py
+
+## 🚀 Running the Bot
+
+```bash
+python3 main.py
 ```
 
-## Available Commands
+The bot will:
+- ✅ Load configuration from YAML and environment variables
+- ✅ Connect to Discord
+- ✅ Initialize trading components
+- ✅ Start listening for commands
 
-### Real-time Trading Signal Commands
+## 📋 Available Commands
 
-- `b!generate_signal <symbol> [strategy_code] [risk_reward]`
-  - Generates a trading signal with real Binance data
+### **🎯 Signal Generation**
+
+- **`b!generate_signal <symbol> [strategy] [risk_reward]`**
+  - Generate trading signal with real market data
   - Example: `b!generate_signal BTC SC02 2.5`
 
-- `b!market_signals [count]`
-  - Generates trading signals for top market cap coins
+- **`b!market_signals [count]`**
+  - Generate signals for top market cap coins
   - Example: `b!market_signals 5`
 
-- `b!live_signal [channel_id]`
-  - Sends a live trading signal to a specified channel
+- **`b!live_signal [channel_id]`**
+  - Send live signal to specified channel
   - Example: `b!live_signal 123456789012345678`
 
-- `b!dual_macd_rsi <symbol> [interval] [higher_tf]`
-  - Analyze a symbol using dual timeframe MACD+RSI strategy
+### **📊 Advanced Analysis**
+
+- **`b!dual_macd_rsi <symbol> [interval] [higher_tf]`**
+  - Dual timeframe MACD+RSI analysis
   - Example: `b!dual_macd_rsi BTC 1h 4h`
 
-### Risk Management Commands
+- **`b!market_regime <symbol> [timeframe]`**
+  - Detect market regime and optimize parameters
+  - Example: `b!market_regime ETH 1h`
 
-- `b!risk_settings [risk_per_trade] [max_daily_loss] [trailing_stop]`
-  - Update risk management settings (values in percentage)
+- **`b!indicator <name> <symbol> [interval] [params]`**
+  - Analyze with specific indicators (RSI, MACD, EMA)
+  - Example: `b!indicator rsi BTC 1h 14 30 70`
+
+### **⚖️ Risk Management**
+
+- **`b!risk_settings [risk] [daily_loss] [trailing_stop]`**
+  - Update risk parameters (percentages)
   - Example: `b!risk_settings 2 5 1.5`
 
-- `b!position_size <symbol> <entry_price> <stop_loss>`
-  - Calculate optimal position size based on your risk settings
+- **`b!position_size <symbol> <entry> <stop_loss>`**
+  - Calculate optimal position size
   - Example: `b!position_size BTC 60000 58500`
 
-### Advanced Trading Commands
+- **`b!position_size_advanced <symbol> [balance] [risk_percent]`**
+  - Advanced position sizing with dynamic risk
+  - Example: `b!position_size_advanced BTC 1000 2.0`
 
-- `b!advanced_buy <symbol> <quantity> [take_profit] [stop_loss]`
-  - Buy with automatic take-profit and stop-loss orders
+### **🔧 Optimization**
+
+- **`b!optimize_params [symbol] [timeframe]`**
+  - Grid search parameter optimization
+  - Example: `b!optimize_params BTC 1h`
+
+- **`b!genetic_optimize <symbol> [timeframe] [generations]`**
+  - Genetic algorithm optimization
+  - Example: `b!genetic_optimize ETH 1h 20`
+
+### **💰 Trading**
+
+- **`b!advanced_buy <symbol> <quantity> [tp] [sl]`**
+  - Advanced buy with TP/SL orders
   - Example: `b!advanced_buy BTC 0.01 61500 58500`
 
-- `b!exchanges`
-  - List all available exchanges through CCXT integration
-  - Example: `b!exchanges`
+- **`b!price <symbol>`** - Get current price
+- **`b!balance`** - Check account balance
+- **`b!test_connection`** - Test exchange connectivity
 
-### Manual Trading Signal Commands
+### **📈 Charting & Visualization**
 
-- `b!signal <symbol> <strategy_code> <entry_price> <tp_price> <sl_price> [ratio] [status] [imminent]`
-  - Sends a trading signal for a specific cryptocurrency
-  - Example: `b!signal AAVE SC02 180.6627 181.3468 180.3207 0.19% takeprofit 1`
-
-- `b!sc01 <symbol> <strategy_code> <entry_price> <tp_price> <sl_price> [ratio] [status] [imminent]`
-  - Sends an SC01-style trading signal with formatting similar to the example
-  - Example: `b!sc01 AAVE SC02 180.6627 181.3468 180.3207 0.19% takeprofit 1`
-
-### Analysis Commands
-
-- `b!price <symbol>`
-  - Get current price of a cryptocurrency
-  - Example: `b!price BTC`
-
-- `b!chart <symbol> [interval] [limit]`
-  - Generate a price chart
+- **`b!chart <symbol> [interval] [limit]`**
+  - Generate price charts
   - Example: `b!chart ETH 4h 50`
 
-- `b!analyze <strategy> <symbol> [interval]`
-  - Analyze a symbol using a specific strategy
-  - Example: `b!analyze rsi BTC 1h`
+- **`b!indicator_chart <indicator> <symbol> [interval]`**
+  - Chart with indicator visualization
+  - Example: `b!indicator_chart macd ETH 4h`
 
-- `b!strategy_chart <strategy> <symbol> [interval] [limit]`
-  - Generate a chart with strategy indicators
+- **`b!strategy_chart <strategy> <symbol> [interval]`**
+  - Chart with strategy signals
   - Example: `b!strategy_chart bollinger_bands ETH 4h`
 
-- `b!indicator <indicator_name> <symbol> [interval] [params]`
-  - Analyze a symbol using a specific technical indicator (MACD, RSI, EMA)
-  - Example: `b!indicator rsi BTC 1h 14 30 70`
-  - Available indicators: `rsi`, `macd`, `ema`
+## ⚙️ Configuration System
 
-- `b!indicator_chart <indicator_name> <symbol> [interval] [params]`
-  - Generate a chart with technical indicator visualization
-  - Example: `b!indicator_chart macd ETH 4h 12 26 9`
+The bot uses a sophisticated configuration system combining YAML files and environment variables:
 
-- `b!help_indicators`
-  - Show help for indicator commands and parameters
+### **YAML Configuration (`src/config/config.yml`)**
+```yaml
+trading:
+  risk_management:
+    max_risk_per_trade: 0.02
+    max_daily_loss: 0.05
+    max_positions: 5
+  
+  indicators:
+    rsi:
+      period: 14
+      overbought: 70
+      oversold: 30
+    
+  symbols: ["BTCUSDT", "ETHUSDT", "ADAUSDT"]
+  timeframes:
+    primary: "1h"
+    secondary: "4h"
 
-### Strategy Management
+discord:
+  command_prefix: "b!"
+  channels:
+    signals: "signals"
+    alerts: "alerts"
+```
 
-- `b!strategies`
-  - List available trading strategies
+### **Environment Override Support**
+Environment variables automatically override YAML settings:
+- `SYMBOLS=BTC,ETH,SOL` → Updates trading symbols
+- `MAX_RISK_PER_TRADE=0.01` → Updates risk per trade
+- `SANDBOX=false` → Switches to live trading
 
-- `b!add_strategy <strategy> <symbol> [interval]`
-  - Add a trading strategy to monitor
-  - Example: `b!add_strategy ma_crossover BTC 1h`
+## 🔧 Demo Mode
 
-- `b!remove_strategy <strategy> <symbol> [interval]`
-  - Remove a trading strategy
-  - Example: `b!remove_strategy ma_crossover BTC 1h`
+Without Binance API credentials, the bot runs in **demo mode**:
+- ✅ Real market data for analysis
+- ✅ Signal generation with live prices  
+- ✅ Full technical analysis capabilities
+- ⚠️ Simulated account data
+- ❌ No actual trading execution
 
-- `b!list_active_strategies`
-  - List all active trading strategies
+## 📊 Signal Format
 
-### Account Management
-
-- `b!balance`
-  - Get your account balance
-
-- `b!buy <symbol> <quantity>`
-  - Buy a cryptocurrency at market price
-  - Example: `b!buy BTC 0.01`
-
-- `b!sell <symbol> <quantity>`
-  - Sell a cryptocurrency at market price
-  - Example: `b!sell BTC 0.01`
-
-### Utilities
-
-- `b!test_connection`
-  - Test the connection to Binance API
-
-## Example Output
-
-The trading signals will appear similar to this format:
+Professional trading signals are formatted like this:
 
 ```
-SC01 trading signals [Hina]
-🟢 AAVE - SC02
-Entry: 180.6627 - TP (2R): 181.3468 - SL: 180.3207
+SC01 trading signals [Reina]
+🟢 BTC - SC02
+Entry: 43250.50 - TP (2R): 43856.25 - SL: 42947.88
 Imminent (Sắp vào Entry): 1
-Ratio (Tỉ lệ): 0.19%
+Ratio (Tỉ lệ): 0.89%
 Status (Trạng thái): takeprofit
-By Hina~
+By Reina~
 ```
 
-## Demo Mode
+## 🔐 Security Features
 
-If you don't provide Binance API credentials in the `.env` file, the bot will run in demo mode. In this mode:
-- The bot will use public Binance API endpoints for market data
-- Account-specific commands will return simulated data
-- Trading signals will still be generated with real market prices
-- No actual trades will be executed
+- **Encrypted API key storage** (optional)
+- **Environment variable security**
+- **Rate limiting** and abuse prevention
+- **Secure configuration management**
+- **Sandbox mode** for safe testing
 
-## License
+## 🚧 Development Status
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+- ✅ **Core Bot**: Fully functional Discord integration
+- ✅ **Configuration**: Professional YAML + env system
+- ✅ **Trading Engine**: Real-time signal generation
+- ✅ **Risk Management**: Dynamic position sizing
+- ✅ **Technical Analysis**: 10+ indicators implemented
+- ✅ **Optimization**: Genetic algorithm + grid search
+- 🔄 **Machine Learning**: Basic implementation
+- 🔄 **Web Dashboard**: Planned feature
+- 🔄 **Advanced Backtesting**: In development
+
+## 📚 Documentation
+
+Comprehensive documentation is maintained in the `memory-bank/` directory:
+- **Project Brief**: Core requirements and goals
+- **Technical Context**: Architecture and technologies
+- **Active Context**: Current development focus
+- **Progress Tracking**: Implementation status
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Implement changes with tests
+4. Update documentation
+5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+---
+
+**⚡ Ready to start trading?** Run `python3 main.py` and use `b!help` in Discord! 

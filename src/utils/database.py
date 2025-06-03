@@ -3,7 +3,7 @@ import sqlite3
 import os
 import json
 from datetime import datetime
-from src.config import config
+from src.config.config_loader import get_config
 
 logger = logging.getLogger('database')
 
@@ -17,14 +17,15 @@ class Database:
         Args:
             db_path: Path to the database file, if None uses the one from config
         """
-        self.use_database = config.get('database', 'use_database', False)
+        config = get_config()
+        self.use_database = getattr(config, 'use_database', False)
         if not self.use_database:
             logger.warning("Database is disabled. Using in-memory storage only.")
             self.conn = None
             self.signals = []
             return
             
-        self.db_type = config.get('database', 'type', 'sqlite')
+        self.db_type = getattr(config, 'db_type', 'sqlite')
         
         if self.db_type == 'sqlite':
             if not db_path:

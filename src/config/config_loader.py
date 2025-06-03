@@ -104,7 +104,7 @@ class BotConfig:
     symbols: List[str] = field(default_factory=lambda: ["BTCUSDT", "ETHUSDT", "ADAUSDT"])
     timeframes: Dict[str, Any] = field(default_factory=lambda: {
         "primary": "1h",
-        "secondary": "4h", 
+        "secondary": "4h",
         "filters": ["15m", "1d"]
     })
     
@@ -342,7 +342,7 @@ def get_config() -> BotConfig:
 
 def reload_config() -> BotConfig:
     """Reload the global configuration"""
-    return _config_loader.reload_config()
+    return _config_loader.reload_config() 
 
 def update_config(updates: Dict[str, Any]) -> BotConfig:
     """Update the global configuration"""

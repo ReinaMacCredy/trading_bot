@@ -33,13 +33,22 @@ logging.basicConfig(
 )
 logger = logging.getLogger('bot')
 
-# Load environment variables
+# Load environment variables and configuration
 load_dotenv()
-token = os.getenv('DISCORD_TOKEN')
+
+# Import our new configuration loader
+from src.config.config_loader import get_config, get_discord_config, is_sandbox
+
+# Get configuration
+config = get_config()
+discord_config = get_discord_config()
+
+# Get token from config
+token = config.discord_token
 channel_id = os.getenv('DISCORD_CHANNEL_ID')
 
-# If token is not found in environment variables, prompt for it
-if token is None:
+# If token is not found, prompt for it
+if not token:
     print("Discord token not found in environment variables.")
     token = input("Please enter your Discord bot token: ")
     if not token:
@@ -50,7 +59,7 @@ intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
 
-bot = commands.Bot(command_prefix='b!', intents=intents, help_command=None)
+bot = commands.Bot(command_prefix=discord_config.command_prefix, intents=intents, help_command=None)
 trading_bot = None
 optimization_manager = None
 
