@@ -1,26 +1,142 @@
-trading:
-  risk_percentage: 2.0
-  max_positions: 5
-  max_daily_loss: 5.0
-  trailing_stop: 1.5
-  indicators:
-    rsi_period: 14
-    macd_fast: 12
-    macd_slow: 26
-    macd_signal: 9
-    ema_periods: [12, 26, 50, 200]
+# Discord Trading Bot - Professional Configuration
 
+# Trading Configuration
+trading:
+  risk_management:
+    max_risk_per_trade: 0.02  # 2% of account per trade
+    max_daily_loss: 0.05      # 5% max daily loss
+    max_positions: 5          # Maximum concurrent positions
+    position_size_method: "fixed_percentage"  # fixed_percentage, kelly_criterion, volatility_based
+    
+  indicators:
+    rsi:
+      period: 14
+      overbought: 70
+      oversold: 30
+    
+    macd:
+      fast_period: 12
+      slow_period: 26
+      signal_period: 9
+    
+    ema_periods: [20, 50, 200]
+    
+    bollinger_bands:
+      period: 20
+      std_dev: 2
+    
+    atr:
+      period: 14
+    
+    stochastic:
+      k_period: 14
+      d_period: 3
+      
+  symbols:
+    - "BTCUSDT"
+    - "ETHUSDT"  
+    - "ADAUSDT"
+    - "DOTUSDT"
+    - "LINKUSDT"
+    
+  timeframes:
+    primary: "1h"
+    secondary: "4h"
+    filters: ["15m", "1d"]
+
+# Discord Configuration
 discord:
   command_prefix: "b!"
-  embed_color: 0x7CFC00
-  cooldown_seconds: 10
-  cooldown_market_signals: 15
+  channels:
+    signals: "signals"
+    alerts: "alerts" 
+    admin: "admin"
+    general: "general"
+  
+  embed_colors:
+    buy: 0x00FF00
+    sell: 0xFF0000
+    hold: 0xFFFF00
+    info: 0x0099FF
+  
+  rate_limits:
+    commands_per_minute: 10
+    signals_per_hour: 20
 
-security:
-  encryption_enabled: false  # Set to true when implementing encryption
+# Exchange Configuration
+exchanges:
+  binance:
+    sandbox: true
+    rate_limit: 1200  # requests per minute
+    retry_attempts: 3
+    timeout: 10
+    
+  supported_exchanges:
+    - binance
+    - coinbase
+    - kraken
+    - bybit
 
+# Monitoring & Alerts
+monitoring:
+  health_check_interval: 300  # seconds
+  alert_thresholds:
+    cpu_usage: 80
+    memory_usage: 80
+    error_rate: 0.05
+  
+  notifications:
+    discord_webhook: true
+    email: false
+    sms: false
+
+# Backtesting Configuration
+backtesting:
+  initial_balance: 10000
+  commission: 0.001  # 0.1%
+  slippage: 0.0005   # 0.05%
+  start_date: "2023-01-01"
+  end_date: "2024-01-01"
+
+# Paper Trading
+paper_trading:
+  enabled: true
+  initial_balance: 10000
+  reset_monthly: false
+  track_performance: true
+
+# Machine Learning
+ml:
+  enabled: false
+  model_type: "random_forest"
+  features:
+    - "rsi"
+    - "macd"
+    - "ema_ratio"
+    - "volume_ratio"
+  retrain_interval: 168  # hours (weekly)
+
+# Database Configuration
 database:
-  use_database: false  # Set to true when implementing database
-  type: "sqlite"  # Options: sqlite, postgresql
-  connection_string: "sqlite:///trading_bot.db"  # For SQLite
-  # connection_string: "postgresql://user:password@localhost:5432/trading_bot"  # For PostgreSQL 
+  signals_retention_days: 90
+  performance_retention_days: 365
+  backup_interval: 24  # hours
+  
+# Security
+security:
+  api_key_rotation_days: 30
+  session_timeout_minutes: 60
+  max_login_attempts: 5
+  
+# Logging
+logging:
+  level: "INFO"
+  format: "json"
+  retention_days: 30
+  
+# Performance
+performance:
+  cache_enabled: true
+  cache_ttl: 300  # seconds
+  max_concurrent_requests: 10
+  request_timeout: 30 
