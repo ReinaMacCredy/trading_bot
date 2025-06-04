@@ -699,6 +699,40 @@ async def test_binance_connection(ctx):
     else:
         await ctx.send("Failed to connect to Binance API. Check logs for details. ❌")
 
+@bot.command(name='sync')
+async def sync_commands(ctx, guild_id: int = None):
+    """Sync slash commands (Admin only)"""
+    # Check if user is bot owner or has admin permissions
+    if not (ctx.author.id == bot.owner_id or ctx.author.guild_permissions.administrator):
+        await ctx.send("❌ You don't have permission to use this command.")
+        return
+    
+    try:
+        if hasattr(bot, 'sync_slash_commands'):
+            status_msg = await ctx.send("🔄 Syncing slash commands...")
+            success = await bot.sync_slash_commands(guild_id)
+            
+            if success:
+                embed = discord.Embed(
+                    title="✅ Slash Commands Synced",
+                    description="Slash commands have been synced successfully!",
+                    color=0x00ff00
+                )
+                if guild_id:
+                    embed.add_field(name="Scope", value=f"Guild: {guild_id}", inline=False)
+                else:
+                    embed.add_field(name="Scope", value="Global (may take up to 1 hour)", inline=False)
+                
+                await status_msg.edit(content="", embed=embed)
+            else:
+                await status_msg.edit(content="❌ Failed to sync slash commands. Check logs for details.")
+        else:
+            await ctx.send("❌ Slash command sync not available.")
+            
+    except Exception as e:
+        logger.error(f"Error in sync command: {e}")
+        await ctx.send(f"❌ Error syncing commands: {str(e)}")
+
 @bot.command(name='health')
 async def bot_health(ctx):
     """Check the bot's health status and system information"""

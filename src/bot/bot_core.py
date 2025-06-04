@@ -139,6 +139,7 @@ class TradingBotCore(commands.Bot):
     async def _load_cogs(self):
         """Load all bot cogs"""
         cogs_to_load = [
+            'src.bot.cogs.slash_commands',  # Add slash commands cog
             'src.bot.cogs.trading_commands',
             'src.bot.cogs.strategy_commands', 
             'src.bot.cogs.analysis_commands',
@@ -153,6 +154,13 @@ class TradingBotCore(commands.Bot):
                 logger.info(f"Loaded cog: {cog}")
             except Exception as e:
                 logger.error(f"Failed to load cog {cog}: {e}")
+                
+        # Sync slash commands
+        try:
+            synced = await self.tree.sync()
+            logger.info(f"Synced {len(synced)} slash commands")
+        except Exception as e:
+            logger.error(f"Failed to sync slash commands: {e}")
                 
     def _start_background_tasks(self):
         """Start background monitoring tasks"""
@@ -427,6 +435,23 @@ class TradingBotCore(commands.Bot):
         inactive = [c for c in all_commands if c not in active]
         return active, inactive
         
+    async def sync_slash_commands(self, guild_id: int = None):
+        """Manually sync slash commands"""
+        try:
+            if guild_id:
+                # Sync to specific guild (faster)
+                guild = discord.Object(id=guild_id)
+                synced = await self.tree.sync(guild=guild)
+                logger.info(f"Synced {len(synced)} slash commands to guild {guild_id}")
+            else:
+                # Global sync (takes up to 1 hour)
+                synced = await self.tree.sync()
+                logger.info(f"Synced {len(synced)} slash commands globally")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to sync slash commands: {e}")
+            return False
+
     async def shutdown(self):
         """Gracefully shutdown the bot"""
         logger.info("Shutting down bot...")

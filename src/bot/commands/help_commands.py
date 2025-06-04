@@ -41,13 +41,27 @@ async def help_command(ctx):
     embed.add_field(name="\u200b", value=info_text, inline=False)
     
     # Other section
+    # Slash Commands section
+    embed.add_field(name="Slash Commands", value="", inline=False)
+    
+    slash_text = (
+        "/price <symbol>: Get current cryptocurrency price\n"
+        "/signal <symbol>: Generate a trading signal\n"
+        "/stats: View bot statistics and status\n"
+        "/help: Show slash command help\n"
+    )
+    embed.add_field(name="\u200b", value=slash_text, inline=False)
+    
     embed.add_field(name="Other", value="", inline=False)
     
     other_text = (
+        "b!sync: Sync slash commands (Admin only)\n"
         "b!vote: Vote for the bot on bot lists to support it!\n"
         "b!clean: Deletes all command related messages\n"
         "b!premium: Do you wish to support this project? Consider donating\n"
     )
     embed.add_field(name="\u200b", value=other_text, inline=False)
+    
+    embed.set_footer(text="Page 1/1 | Use / for slash commands!")
     
     await ctx.send(embed=embed) 
