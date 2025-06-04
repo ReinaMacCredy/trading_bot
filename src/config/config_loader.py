@@ -61,9 +61,11 @@ class DiscordConfig:
 @dataclass
 class ExchangeConfig:
     """Exchange configuration settings"""
+    name: str = "binance"
     sandbox: bool = True
     rate_limit: int = 1200
     retry_attempts: int = 3
+    retry_delay: int = 1000  # milliseconds
     timeout: int = 10
     supported_exchanges: List[str] = field(default_factory=lambda: [
         "binance", "coinbase", "kraken", "bybit"
