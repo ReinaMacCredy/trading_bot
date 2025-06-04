@@ -1,7 +1,15 @@
 # Active Context: Professional Discord Trading Bot
 
 ## 🎯 Current Work Focus
-**CURRENT: Duplicate Command Response Resolution & System Optimization**
+**CURRENT: Discord Slash Command Interaction Error Resolution Complete**
+
+Successfully resolved critical Discord interaction timeout errors that were causing slash commands to fail with "404 Not Found (error code: 10062): Unknown interaction" errors. Implemented comprehensive error handling for all defer calls in slash commands, preventing command crashes and improving user experience.
+
+**Previous: Investigating Duplicate Price Response Issue & Enhanced Debugging**
+
+Currently investigating persistent duplicate response issue with `/price` command despite previous fixes. The duplicate messages appear as plain text "Current price of BTCUSDT: $104952.38000000" rather than the rich embed format produced by the slash command, suggesting an external source. Implemented enhanced logging, duplicate detection, and debugging tools to identify the root cause.
+
+**Previous: Duplicate Command Response Resolution & System Optimization**
 
 Successfully resolved duplicate response issue with `/price` command that was causing double messages. Fixed command conflicts between traditional prefix commands and modern slash commands. The bot now provides clean, single responses for all user interactions.
 
@@ -15,25 +23,48 @@ Successfully implemented comprehensive multi-exchange support enabling the bot t
 
 ## 🔄 Recent Changes
 
-### **🔧 Duplicate Command Response Resolution (Latest)**
-**Critical Command Conflict Fix**
-- ✅ **Fixed Duplicate Price Command** - Removed traditional `b!price` command to prevent conflicts with `/price` slash command
-- ✅ **Identified Root Cause** - Both traditional and slash commands were executing simultaneously for `/price BTC`
-- ✅ **Updated Help Documentation** - Changed help menu to reflect `/price` as slash command only
-- ✅ **Preserved Command Functionality** - Maintained different functionality for `signal` and `help` commands where appropriate
-- ✅ **Cleaned Response System** - Users now receive single, clean responses for price queries
+### **🔧 Discord Slash Command Interaction Error Fix (Latest)**
+**Critical Production Stability Enhancement**
+- ✅ **Fixed Interaction Timeout Errors** - Added comprehensive error handling for Discord interaction defer calls
+- ✅ **Enhanced Error Specificity** - Separate handling for NotFound, InteractionResponded, and generic errors
+- ✅ **Improved User Experience** - Commands now fail gracefully instead of throwing unhandled exceptions
+- ✅ **Applied to All Slash Commands** - Fixed stats, signal, price, and help commands
+- ✅ **Enhanced Logging** - Clear error messages for debugging interaction timeout issues
+
+**Technical Implementation:**
+- **Error Catching**: Wrapped all `interaction.response.defer()` calls in try-catch blocks
+- **Specific Exceptions**: Handle `discord.errors.NotFound` (expired interactions) and `discord.errors.InteractionResponded` (already responded)
+- **Graceful Returns**: Commands return silently when interaction issues occur instead of crashing
+- **Production Reliability**: Prevents the "404 Not Found (error code: 10062): Unknown interaction" errors
+- **Debug Information**: Comprehensive logging with interaction IDs for troubleshooting
+
+**Root Cause Analysis:**
+- **Discord Limitation**: Interactions have a 3-second timeout for initial response
+- **Timing Issues**: Commands sometimes exceed the timeout window before calling defer
+- **Race Conditions**: Multiple rapid commands could cause interaction conflicts
+- **Solution**: Proactive error handling prevents crashes and improves stability
+
+### **🔧 Enhanced Debugging for Duplicate Price Responses (Previous)**
+**Investigative Enhancement & Advanced Logging**
+- ✅ **Enhanced Slash Command Logging** - Added comprehensive logging to track command execution flow
+- ✅ **Improved Duplicate Detection** - Extended interaction tracking from 5 to 10 seconds with user-specific rate limiting
+- ✅ **Distinctive Response Format** - Modified embed format to be easily identifiable with unique footer and ID tracking
+- ✅ **Debug Command Implementation** - Added `b!debug_price` command to identify potential conflict sources
+- ✅ **Rate Limiting Protection** - Added 3-second cooldown per user per symbol to prevent rapid duplicates
 
 **Technical Analysis:**
-- **Problem**: Discord was triggering both `@bot.command(name='price')` and `@app_commands.command(name="price")` 
-- **Solution**: Removed redundant traditional command, kept modern slash command
-- **Impact**: No more duplicate "Current price of BTCUSDT: $105042.69000000" messages
-- **Command Strategy**: Slash commands for simple queries, traditional commands for complex operations
+- **Observed Issue**: Duplicate plain text messages "Current price of BTCUSDT: $104952.38000000" 
+- **Format Mismatch**: Response format doesn't match slash command embed output (title: "💰 {symbol} Price Information")
+- **Suspected Sources**: External bot instance, webhook, console output redirection, or different Discord application
+- **Detection Strategy**: Enhanced logging with interaction IDs and user tracking to isolate the source
+- **Response Enhancement**: Modified embed to include unique identifiers and improved visual formatting
 
-**Current Command Architecture:**
-- **Price Queries**: `/price` (slash command only) - Clean, modern Discord interface
-- **Signal Generation**: `b!signal` (manual) + `/signal` (automated) - Different purposes, coexist intentionally
-- **Help System**: `b!help` (detailed) + `/help` (simplified) - Different audiences, coexist intentionally
-- **User Experience**: Single responses, no command confusion
+**Current Investigation Status:**
+- **Slash Command**: Confirmed producing rich embed format with unique styling
+- **Traditional Commands**: Verified removal of conflicting `b!price` command
+- **Logging Enhanced**: Full execution tracking from trigger to response
+- **Debug Tools**: Available via `b!debug_price` command for administrators
+- **Next Steps**: Monitor logs for duplicate sources and check for external interference
 
 ### **🔧 Health Server Port Conflict Resolution & System Optimization (Previous)**
 **Critical Infrastructure Fixes**

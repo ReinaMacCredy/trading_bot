@@ -33,29 +33,57 @@ class SlashCommands(commands.Cog):
         exchange: Optional[Literal["binance", "coinbase", "kraken", "bybit"]] = "binance"
     ):
         """Get current price for a cryptocurrency using slash command"""
+        # Enhanced logging to track command execution
+        logger.info(f"Price slash command triggered by {interaction.user} for {symbol} on {exchange}")
+        
         # Safety check to prevent double acknowledgment
         if interaction.response.is_done():
             logger.warning("Interaction already acknowledged for price command")
             return
 
-        # Prevent duplicate responses if the interaction is triggered twice
+        # Enhanced duplicate protection with longer tracking
         now_ts = datetime.now().timestamp()
-        # Remove expired entries (>5 seconds old)
+        # Remove expired entries (>10 seconds old)
         self._processed_interactions = {
-            k: t for k, t in self._processed_interactions.items() if now_ts - t < 5
+            k: t for k, t in self._processed_interactions.items() if now_ts - t < 10
         }
         if interaction.id in self._processed_interactions:
-            logger.warning(f"Duplicate interaction detected: {interaction.id}")
+            logger.warning(f"Duplicate interaction detected: {interaction.id} - Ignoring")
             return
         self._processed_interactions[interaction.id] = now_ts
 
-        await interaction.response.defer()
+        # Check for rapid duplicate requests from same user
+        user_key = f"user_{interaction.user.id}_{symbol}"
+        if hasattr(self, '_user_requests'):
+            if user_key in self._user_requests:
+                last_request = self._user_requests[user_key]
+                if (now_ts - last_request) < 3:  # 3 second cooldown per user per symbol
+                    logger.warning(f"Rate limited duplicate request from {interaction.user} for {symbol}")
+                    return
+        else:
+            self._user_requests = {}
+        
+        self._user_requests[user_key] = now_ts
+
+        try:
+            await interaction.response.defer()
+        except discord.errors.NotFound:
+            logger.error("Interaction expired or not found when trying to defer price command")
+            return
+        except discord.errors.InteractionResponded:
+            logger.warning("Interaction already responded to for price command")
+            return
+        except Exception as e:
+            logger.error(f"Unexpected error deferring price interaction: {e}")
+            return
         
         try:
             # Format symbol
             symbol = symbol.upper()
             if not symbol.endswith('/USDT'):
                 symbol = f"{symbol}/USDT"
+            
+            logger.info(f"Fetching price for {symbol} from trading bot")
             
             # Get price from trading bot
             trading_bot = getattr(self.bot, 'trading_bot', None)
@@ -67,24 +95,33 @@ class SlashCommands(commands.Cog):
             if not price:
                 raise ValueError("Could not fetch price data")
             
+            logger.info(f"Price fetched successfully: {price} for {symbol}")
+            
             # Create ticker data
             ticker = {
-                'last': price,
+                'last': float(price),
                 'symbol': symbol,
                 'percentage': 0.0,  # Mock data for now
                 'change': 0.0
             }
             
-            # Create embed
+            # Create distinctive embed with unique formatting
             embed = discord.Embed(
-                title=f"💰 {symbol} Price",
+                title=f"💰 {symbol} Price Information",
+                description=f"Real-time price from {exchange.upper()}",
                 color=0x00ff00,
                 timestamp=datetime.now()
             )
             
             embed.add_field(
-                name="Current Price",
-                value=f"${ticker.get('last', 0):,.2f}",
+                name="💵 Current Price",
+                value=f"**${ticker.get('last', 0):,.8f}**",
+                inline=True
+            )
+            
+            embed.add_field(
+                name="📊 Exchange",
+                value=f"🏪 {exchange.capitalize()}",
                 inline=True
             )
             
@@ -92,36 +129,43 @@ class SlashCommands(commands.Cog):
             if 'percentage' in ticker:
                 change_color = "🟢" if ticker['percentage'] >= 0 else "🔴"
                 embed.add_field(
-                    name="24h Change",
+                    name="📈 24h Change",
                     value=f"{change_color} {ticker['percentage']:.2f}%",
                     inline=True
                 )
             
             if 'high' in ticker and 'low' in ticker:
                 embed.add_field(
-                    name="24h High/Low",
+                    name="📊 24h High/Low",
                     value=f"${ticker['high']:,.2f} / ${ticker['low']:,.2f}",
                     inline=True
                 )
             
-            embed.add_field(
-                name="Exchange",
-                value=exchange.capitalize(),
-                inline=True
+            # Add unique identifier to help track the source
+            embed.set_footer(
+                text=f"Trading Bot v2.0 | Slash Command | ID: {interaction.id}",
+                icon_url=interaction.client.user.avatar.url if interaction.client.user.avatar else None
             )
             
-            embed.set_footer(text="Trading Bot | Real-time data")
-            
+            logger.info(f"Sending price embed for {symbol} to user {interaction.user}")
             await interaction.followup.send(embed=embed)
+            logger.info(f"Price embed sent successfully for {symbol}")
                 
         except Exception as e:
             logger.error(f"Error in price slash command: {e}")
             
             error_embed = discord.Embed(
-                title="❌ Error",
-                description=f"Could not fetch price for {symbol}: {str(e)}",
+                title="❌ Price Fetch Error",
+                description=f"Could not fetch price for {symbol}",
                 color=0xff0000
             )
+            error_embed.add_field(
+                name="Error Details",
+                value=f"```{str(e)}```",
+                inline=False
+            )
+            error_embed.set_footer(text=f"Error ID: {interaction.id}")
+            
             try:
                 await interaction.followup.send(embed=error_embed, ephemeral=True)
             except discord.errors.InteractionResponded:
@@ -148,7 +192,17 @@ class SlashCommands(commands.Cog):
             logger.warning("Interaction already acknowledged for signal command")
             return
             
-        await interaction.response.defer()
+        try:
+            await interaction.response.defer()
+        except discord.errors.NotFound:
+            logger.error("Interaction expired or not found when trying to defer signal command")
+            return
+        except discord.errors.InteractionResponded:
+            logger.warning("Interaction already responded to for signal command")
+            return
+        except Exception as e:
+            logger.error(f"Unexpected error deferring signal interaction: {e}")
+            return
         
         try:
             # Format symbol
@@ -275,7 +329,17 @@ class SlashCommands(commands.Cog):
             logger.warning("Interaction already acknowledged for stats command")
             return
             
-        await interaction.response.defer()
+        try:
+            await interaction.response.defer()
+        except discord.errors.NotFound:
+            logger.error("Interaction expired or not found when trying to defer stats command")
+            return
+        except discord.errors.InteractionResponded:
+            logger.warning("Interaction already responded to for stats command")
+            return
+        except Exception as e:
+            logger.error(f"Unexpected error deferring stats interaction: {e}")
+            return
         
         try:
             # Get bot stats
@@ -356,7 +420,17 @@ class SlashCommands(commands.Cog):
             logger.warning("Interaction already acknowledged for help command")
             return
             
-        await interaction.response.defer()
+        try:
+            await interaction.response.defer()
+        except discord.errors.NotFound:
+            logger.error("Interaction expired or not found when trying to defer help command")
+            return
+        except discord.errors.InteractionResponded:
+            logger.warning("Interaction already responded to for help command")
+            return
+        except Exception as e:
+            logger.error(f"Unexpected error deferring help interaction: {e}")
+            return
         
         try:
             embed = discord.Embed(

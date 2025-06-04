@@ -2068,6 +2068,97 @@ async def slash_info(ctx):
         logger.error(f"Error in slashinfo command: {e}")
         await ctx.send(f"❌ Error getting slash command info: {str(e)}")
 
+@bot.command(name='debug_price')
+async def debug_price_responses(ctx, symbol: str = "BTC"):
+    """Debug command to track price response sources"""
+    if not ctx.author.guild_permissions.administrator:
+        await ctx.send("❌ This command requires administrator permissions.")
+        return
+    
+    try:
+        embed = discord.Embed(
+            title="🔍 Price Command Debug Information",
+            description=f"Checking for duplicate response sources for {symbol}",
+            color=0x0099ff,
+            timestamp=datetime.now()
+        )
+        
+        # Add bot information
+        embed.add_field(
+            name="🤖 Bot Information",
+            value=f"**Bot ID:** {bot.user.id}\n"
+                  f"**Bot Name:** {bot.user.display_name}\n"
+                  f"**Bot Status:** {'Online' if not bot.is_closed() else 'Offline'}",
+            inline=False
+        )
+        
+        # Check for registered commands
+        price_commands = []
+        for command in bot.commands:
+            if 'price' in command.name.lower():
+                price_commands.append(f"• `{discord_config.command_prefix}{command.name}`")
+        
+        # Check for slash commands
+        slash_commands = []
+        for command in bot.tree.get_commands():
+            if 'price' in command.name.lower():
+                slash_commands.append(f"• `/{command.name}`")
+        
+        embed.add_field(
+            name="📝 Registered Price Commands",
+            value="\n".join(price_commands) if price_commands else "None found",
+            inline=True
+        )
+        
+        embed.add_field(
+            name="⚡ Registered Slash Commands",
+            value="\n".join(slash_commands) if slash_commands else "None found",
+            inline=True
+        )
+        
+        # Check for loaded extensions/cogs
+        loaded_cogs = []
+        for cog_name, cog in bot.cogs.items():
+            loaded_cogs.append(f"• {cog_name}")
+        
+        embed.add_field(
+            name="🔧 Loaded Cogs",
+            value="\n".join(loaded_cogs[:10]) if loaded_cogs else "None loaded",
+            inline=False
+        )
+        
+        # Add warnings
+        warnings = []
+        if len(price_commands) > 1:
+            warnings.append("⚠️ Multiple prefix price commands detected")
+        if len(slash_commands) > 1:
+            warnings.append("⚠️ Multiple slash price commands detected")
+        
+        if warnings:
+            embed.add_field(
+                name="⚠️ Potential Issues",
+                value="\n".join(warnings),
+                inline=False
+            )
+        
+        embed.add_field(
+            name="💡 Recommendation",
+            value="If you see duplicate responses:\n"
+                  "1. Check for other bot instances\n"
+                  "2. Verify no webhooks are responding\n"
+                  "3. Check Discord application commands\n"
+                  "4. Look for console output being redirected",
+            inline=False
+        )
+        
+        embed.set_footer(text=f"Debug run by {ctx.author.display_name}")
+        
+        await ctx.send(embed=embed)
+        
+    except Exception as e:
+        logger.error(f"Error in debug_price command: {e}")
+        await ctx.send(f"❌ Error running debug: {str(e)}")
+
 def run_bot():
     """Run the Discord bot"""
     bot.run(token)
