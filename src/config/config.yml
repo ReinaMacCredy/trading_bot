@@ -66,9 +66,11 @@ discord:
 # Exchange Configuration
 exchanges:
   binance:
+    name: "binance"
     sandbox: true
     rate_limit: 1200  # requests per minute
     retry_attempts: 3
+    retry_delay: 1000  # milliseconds
     timeout: 10
     
   supported_exchanges:
