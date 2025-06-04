@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+env/
+venv/
+build/
+dist/
+.git
+.gitignore
+tests/
+doc/
+memory-bank/
+.env
