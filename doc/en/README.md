@@ -79,7 +79,7 @@ Examples:
 
 ## 🔗 Quick Links
 
-- **[GitHub Repository](https://github.com/your-repo/trading-bot)** - Source code and issues
+- **[GitHub Repository](https://github.com/ReinaMacCredy/trading_bot)** - Source code and issues
 - **[Discord Support Server](https://discord.gg/your-server)** - Community support
 - **[API Documentation](api-reference/README.md)** - Technical reference
 - **[Changelog](CHANGELOG.md)** - Version history and updates

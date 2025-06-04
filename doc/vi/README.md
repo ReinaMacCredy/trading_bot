@@ -79,7 +79,7 @@ Ví dụ:
 
 ## 🔗 Liên Kết Nhanh
 
-- **[GitHub Repository](https://github.com/your-repo/trading-bot)** - Mã nguồn và issues
+- **[GitHub Repository](https://github.com/ReinaMacCredy/trading_bot)** - Mã nguồn và issues
 - **[Discord Support Server](https://discord.gg/your-server)** - Hỗ trợ cộng đồng
 - **[Tài Liệu API](api-reference/README.md)** - Tham chiếu kỹ thuật
 - **[Changelog](CHANGELOG.md)** - Lịch sử phiên bản và cập nhật

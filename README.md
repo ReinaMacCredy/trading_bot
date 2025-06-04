@@ -69,7 +69,7 @@ maintained.
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/ReinaMacCredy/trading_bot.git
    cd discord_bot/trading_bot
    ```
 

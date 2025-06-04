@@ -50,8 +50,8 @@ typing            # Type hints for better code quality
 ### **Installation Process**
 ```bash
 # Clone repository
-git clone <repository-url>
-cd discord_bot/trading_bot
+git clone https://github.com/ReinaMacCredy/trading_bot.git
+cd trading_bot
 
 # Create virtual environment
 python3 -m venv venv

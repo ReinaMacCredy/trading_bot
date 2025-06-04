@@ -52,12 +52,12 @@ pip3 --version
 
 ### Option A: Clone with Git (Recommended)
 ```bash
-git clone https://github.com/your-repo/discord-trading-bot.git
-cd discord-trading-bot
+git clone https://github.com/ReinaMacCredy/trading_bot.git
+cd trading_bot
 ```
 
 ### Option B: Download ZIP
-1. Go to the [GitHub repository](https://github.com/your-repo/discord-trading-bot)
+1. Go to the [GitHub repository](https://github.com/ReinaMacCredy/trading_bot)
 2. Click "Code" → "Download ZIP"
 3. Extract the ZIP file
 4. Navigate to the extracted folder

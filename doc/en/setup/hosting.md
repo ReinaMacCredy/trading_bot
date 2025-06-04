@@ -61,8 +61,8 @@ sudo su - tradingbot
 
 ```bash
 # Clone the repository
-git clone <your-repository-url>
-cd discord_bot/trading_bot
+git clone https://github.com/ReinaMacCredy/trading_bot.git
+cd trading_bot
 
 # Create and activate virtual environment
 python3 -m venv venv
@@ -134,10 +134,10 @@ After=network.target postgresql.service
 
 [Service]
 Type=simple
-User=tradingbot
-WorkingDirectory=/home/tradingbot/discord_bot/trading_bot
-Environment=PATH=/home/tradingbot/discord_bot/trading_bot/venv/bin
-ExecStart=/home/tradingbot/discord_bot/trading_bot/venv/bin/python main.py
+User=cfp
+WorkingDirectory=/home/cfp/trading_bot
+Environment=PATH=/home/cfp/trading_bot/venv/bin
+ExecStart=/home/cfp/trading_bot/venv/bin/python main.py
 Restart=always
 RestartSec=10
 
@@ -145,7 +145,7 @@ RestartSec=10
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
-ReadWritePaths=/home/tradingbot/discord_bot/trading_bot
+ReadWritePaths=/home/cfp/trading_bot
 
 [Install]
 WantedBy=multi-user.target
@@ -490,7 +490,7 @@ python-3.11.6
 {
   "name": "Professional Discord Trading Bot",
   "description": "A professional-grade Discord bot for cryptocurrency trading",
-  "repository": "https://github.com/your-username/trading-bot",
+      "repository": "https://github.com/ReinaMacCredy/trading_bot",
   "logo": "https://your-logo-url.com/logo.png",
   "keywords": ["discord", "trading", "cryptocurrency", "bot"],
   "env": {

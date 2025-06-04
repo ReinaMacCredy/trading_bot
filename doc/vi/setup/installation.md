@@ -52,12 +52,12 @@ pip3 --version
 
 ### Tùy Chọn A: Clone với Git (Khuyến nghị)
 ```bash
-git clone https://github.com/your-repo/discord-trading-bot.git
-cd discord-trading-bot
+git clone https://github.com/ReinaMacCredy/trading_bot.git
+cd trading_bot
 ```
 
 ### Tùy Chọn B: Tải ZIP
-1. Đi tới [GitHub repository](https://github.com/your-repo/discord-trading-bot)
+1. Đi tới [GitHub repository](https://github.com/ReinaMacCredy/trading_bot)
 2. Click "Code" → "Download ZIP"
 3. Giải nén file ZIP
 4. Navigate tới thư mục đã giải nén

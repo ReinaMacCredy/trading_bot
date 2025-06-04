@@ -61,8 +61,8 @@ sudo su - tradingbot
 
 ```bash
 # Clone repository
-git clone <your-repository-url>
-cd discord_bot/trading_bot
+git clone https://github.com/ReinaMacCredy/trading_bot.git
+cd trading_bot
 
 # Tạo và kích hoạt virtual environment
 python3 -m venv venv
@@ -134,10 +134,10 @@ After=network.target postgresql.service
 
 [Service]
 Type=simple
-User=tradingbot
-WorkingDirectory=/home/tradingbot/discord_bot/trading_bot
-Environment=PATH=/home/tradingbot/discord_bot/trading_bot/venv/bin
-ExecStart=/home/tradingbot/discord_bot/trading_bot/venv/bin/python main.py
+User=cfp
+WorkingDirectory=/home/cfp/trading_bot
+Environment=PATH=/home/cfp/trading_bot/venv/bin
+ExecStart=/home/cfp/trading_bot/venv/bin/python main.py
 Restart=always
 RestartSec=10
 
@@ -145,7 +145,7 @@ RestartSec=10
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
-ReadWritePaths=/home/tradingbot/discord_bot/trading_bot
+ReadWritePaths=/home/cfp/trading_bot
 
 [Install]
 WantedBy=multi-user.target
