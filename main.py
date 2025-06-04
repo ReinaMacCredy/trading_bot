@@ -29,6 +29,9 @@ from src.trading.risk_manager import DynamicRiskManager
 from src.bot.commands.history_commands import status_commands, active_commands, inactive_commands, order_history
 from src.trading.order_history import OrderHistory
 
+# Import RL commands
+from src.bot.commands.rl_commands import RLCommands
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
