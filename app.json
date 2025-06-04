@@ -1,0 +1,108 @@
+{
+  "name": "Professional Discord Trading Bot",
+  "description": "A professional-grade Discord bot for cryptocurrency trading signals, analysis, and automated trading with advanced risk management.",
+  "repository": "https://github.com/your-username/discord-trading-bot",
+  "logo": "https://your-logo-url.com/logo.png",
+  "keywords": [
+    "discord",
+    "trading",
+    "cryptocurrency",
+    "bot",
+    "binance",
+    "signals",
+    "technical-analysis",
+    "risk-management"
+  ],
+  "success_url": "/",
+  "env": {
+    "DISCORD_TOKEN": {
+      "description": "Discord bot token from Discord Developer Portal",
+      "required": true
+    },
+    "BINANCE_API_KEY": {
+      "description": "Binance API key for trading functionality",
+      "required": true
+    },
+    "BINANCE_SECRET": {
+      "description": "Binance API secret for trading functionality",
+      "required": true
+    },
+    "ENVIRONMENT": {
+      "description": "Environment mode (development/production)",
+      "value": "production",
+      "required": false
+    },
+    "EXCHANGE_SANDBOX": {
+      "description": "Enable sandbox mode for testing (true/false)",
+      "value": "false",
+      "required": false
+    },
+    "MAX_RISK_PER_TRADE": {
+      "description": "Maximum risk per trade as decimal (e.g., 0.01 = 1%)",
+      "value": "0.01",
+      "required": false
+    },
+    "MAX_DAILY_LOSS": {
+      "description": "Maximum daily loss limit as decimal (e.g., 0.03 = 3%)",
+      "value": "0.03",
+      "required": false
+    },
+    "LOG_LEVEL": {
+      "description": "Logging level (DEBUG, INFO, WARNING, ERROR)",
+      "value": "INFO",
+      "required": false
+    },
+    "ENABLE_PAPER_TRADING": {
+      "description": "Enable paper trading mode (true/false)",
+      "value": "true",
+      "required": false
+    },
+    "CACHE_TTL": {
+      "description": "Cache time-to-live in seconds",
+      "value": "300",
+      "required": false
+    },
+    "MAX_CONCURRENT_REQUESTS": {
+      "description": "Maximum concurrent API requests",
+      "value": "10",
+      "required": false
+    }
+  },
+  "formation": {
+    "worker": {
+      "quantity": 1,
+      "size": "basic"
+    }
+  },
+  "addons": [
+    {
+      "plan": "heroku-postgresql:mini",
+      "as": "DATABASE"
+    },
+    {
+      "plan": "heroku-redis:mini",
+      "as": "REDIS"
+    }
+  ],
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ],
+  "stack": "heroku-22",
+  "environments": {
+    "test": {
+      "addons": [
+        "heroku-postgresql:in-dyno"
+      ],
+      "env": {
+        "ENVIRONMENT": "development",
+        "EXCHANGE_SANDBOX": "true",
+        "ENABLE_PAPER_TRADING": "true"
+      },
+      "scripts": {
+        "test": "python -m pytest tests/"
+      }
+    }
+  }
+}

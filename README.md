@@ -107,8 +107,30 @@ LOG_LEVEL=INFO
 
 ## 🚀 Running the Bot
 
+### **Local Development**
 ```bash
 python3 main.py
+```
+
+### **Docker Development**
+```bash
+# Quick start with Docker
+docker-compose up -d
+
+# Or use the deployment script
+./scripts/deploy.sh docker-dev
+```
+
+### **Production Deployment**
+```bash
+# Deploy to production with Docker
+./scripts/deploy.sh docker-prod
+
+# Deploy to Heroku
+./scripts/deploy.sh heroku
+
+# Deploy to VPS (see hosting guide)
+./scripts/deploy.sh vps
 ```
 
 The bot will:
@@ -116,6 +138,59 @@ The bot will:
 - ✅ Connect to Discord
 - ✅ Initialize trading components
 - ✅ Start listening for commands
+
+## 🌐 Hosting & Deployment
+
+### **🚀 Quick Deployment Options**
+
+#### **Option 1: One-Click Heroku Deployment**
+[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy)
+
+#### **Option 2: Docker Deployment**
+```bash
+# Development
+./scripts/deploy.sh docker-dev
+
+# Production with monitoring
+./scripts/deploy.sh docker-prod
+```
+
+#### **Option 3: VPS Deployment**
+```bash
+# Automated VPS setup
+./scripts/deploy.sh vps
+```
+
+### **📋 Hosting Requirements**
+
+**Minimum Requirements:**
+- 1 vCPU, 1GB RAM, 20GB Storage
+- Python 3.9+, Docker (optional)
+- PostgreSQL or SQLite
+
+**Recommended for Production:**
+- 2 vCPU, 2GB RAM, 40GB Storage
+- PostgreSQL + Redis
+- SSL/TLS certificate
+- Monitoring stack
+
+### **🔧 Deployment Commands**
+
+```bash
+# Check deployment readiness
+./scripts/deploy.sh check
+
+# Deploy to different platforms
+./scripts/deploy.sh docker-dev    # Local development
+./scripts/deploy.sh docker-prod   # Production with monitoring
+./scripts/deploy.sh heroku        # Heroku deployment
+./scripts/deploy.sh vps          # VPS deployment
+
+# Health monitoring
+curl http://localhost:8080/health  # Check bot health
+```
+
+For detailed hosting instructions, see our **[Comprehensive Hosting Guide](doc/en/setup/hosting.md)**.
 
 ## 📋 Available Commands
 
@@ -254,6 +329,52 @@ Status (Trạng thái): takeprofit
 By Reina~
 ```
 
+## 🚀 Hosting & Deployment
+
+### **Quick Deployment Options**
+
+#### **🐳 Docker (Recommended)**
+```bash
+# Development
+./scripts/deploy.sh docker-dev
+
+# Production with monitoring
+./scripts/deploy.sh docker-prod
+```
+
+#### **☁️ Cloud Platforms**
+- **Heroku**: One-click deployment with `./scripts/deploy.sh heroku`
+- **AWS**: EC2, ECS, or Lambda deployment options
+- **Google Cloud**: Compute Engine or Cloud Run
+- **DigitalOcean**: VPS deployment with automated setup
+
+#### **🖥️ VPS Deployment**
+```bash
+# Ubuntu 20.04/22.04 LTS
+curl -sSL https://raw.githubusercontent.com/your-repo/scripts/install-vps.sh | bash
+```
+
+### **Hosting Requirements**
+```
+Minimum:     Recommended:
+1 vCPU       2 vCPU
+1GB RAM      2GB RAM  
+20GB SSD     40GB SSD
+Ubuntu LTS   Ubuntu 22.04 LTS
+```
+
+### **Production Features**
+- ✅ **Docker containerization** with multi-stage builds
+- ✅ **PostgreSQL** database with optimized settings
+- ✅ **Redis caching** for performance
+- ✅ **Nginx reverse proxy** with SSL/TLS
+- ✅ **Prometheus & Grafana** monitoring stack
+- ✅ **Automated backups** and log rotation
+- ✅ **Health checks** and auto-restart
+- ✅ **Security hardening** with non-root containers
+
+**📖 Complete hosting guide: [doc/en/setup/hosting.md](doc/en/setup/hosting.md)**
+
 ## 🔐 Security Features
 
 - **Encrypted API key storage** (optional)
@@ -261,6 +382,7 @@ By Reina~
 - **Rate limiting** and abuse prevention
 - **Secure configuration management**
 - **Sandbox mode** for safe testing
+- **Production security hardening**
 
 ## 🚧 Development Status
 

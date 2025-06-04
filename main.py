@@ -13,6 +13,9 @@ from datetime import datetime
 import random
 import ccxt
 import json
+import asyncio
+import aiohttp
+from pathlib import Path
 
 # Import optimization components
 from src.trading.optimization_manager import OptimizationManager
@@ -47,6 +50,10 @@ discord_config = get_discord_config()
 token = config.discord_token
 channel_id = os.getenv('DISCORD_CHANNEL_ID')
 
+# Health check and monitoring setup
+health_check_file = Path("/tmp/bot_healthy")
+startup_time = datetime.now()
+
 # If token is not found, prompt for it
 if not token:
     print("Discord token not found in environment variables.")
@@ -62,6 +69,101 @@ intents.message_content = True
 bot = commands.Bot(command_prefix=discord_config.command_prefix, intents=intents, help_command=None)
 trading_bot = None
 optimization_manager = None
+
+# Health monitoring variables
+bot_healthy = False
+last_heartbeat = datetime.now()
+
+def update_health_status(status: bool = True):
+    """Update the health check file for Docker health monitoring"""
+    global bot_healthy, last_heartbeat
+    bot_healthy = status
+    last_heartbeat = datetime.now()
+    
+    try:
+        if status:
+            health_check_file.touch()
+            logger.debug("Health check file updated")
+        else:
+            if health_check_file.exists():
+                health_check_file.unlink()
+            logger.warning("Health check file removed - bot unhealthy")
+    except Exception as e:
+        logger.error(f"Failed to update health status: {e}")
+
+async def health_monitor():
+    """Background task to monitor bot health"""
+    while True:
+        try:
+            # Check if bot is connected and responsive
+            if bot.is_ready() and trading_bot is not None:
+                update_health_status(True)
+            else:
+                update_health_status(False)
+                
+            # Log health status every 5 minutes
+            uptime = datetime.now() - startup_time
+            if uptime.total_seconds() % 300 < 10:  # Every 5 minutes
+                logger.info(f"Bot health check - Uptime: {uptime}, Connected: {bot.is_ready()}, Trading bot: {trading_bot is not None}")
+                
+            await asyncio.sleep(30)  # Check every 30 seconds
+        except Exception as e:
+            logger.error(f"Health monitor error: {e}")
+            update_health_status(False)
+            await asyncio.sleep(30)
+
+async def start_health_server():
+    """Start a simple HTTP health server for monitoring"""
+    from aiohttp import web
+    
+    async def health_endpoint(request):
+        """Health check endpoint"""
+        uptime = datetime.now() - startup_time
+        health_data = {
+            "status": "healthy" if bot_healthy else "unhealthy",
+            "uptime_seconds": int(uptime.total_seconds()),
+            "bot_ready": bot.is_ready(),
+            "trading_bot_initialized": trading_bot is not None,
+            "last_heartbeat": last_heartbeat.isoformat(),
+            "environment": os.getenv("ENVIRONMENT", "development")
+        }
+        
+        status_code = 200 if bot_healthy else 503
+        return web.json_response(health_data, status=status_code)
+    
+    async def metrics_endpoint(request):
+        """Metrics endpoint for monitoring"""
+        uptime = datetime.now() - startup_time
+        metrics = {
+            "bot_uptime_seconds": int(uptime.total_seconds()),
+            "bot_connected": 1 if bot.is_ready() else 0,
+            "trading_bot_ready": 1 if trading_bot is not None else 0,
+            "guild_count": len(bot.guilds) if bot.is_ready() else 0,
+            "user_count": sum(guild.member_count for guild in bot.guilds) if bot.is_ready() else 0
+        }
+        
+        # Convert to Prometheus format if requested
+        if request.headers.get('Accept') == 'text/plain':
+            prometheus_format = ""
+            for key, value in metrics.items():
+                prometheus_format += f"{key} {value}\n"
+            return web.Response(text=prometheus_format, content_type='text/plain')
+        
+        return web.json_response(metrics)
+    
+    app = web.Application()
+    app.router.add_get('/health', health_endpoint)
+    app.router.add_get('/metrics', metrics_endpoint)
+    app.router.add_get('/healthz', health_endpoint)  # Kubernetes style
+    
+    try:
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, '0.0.0.0', 8080)
+        await site.start()
+        logger.info("Health server started on port 8080")
+    except Exception as e:
+        logger.error(f"Failed to start health server: {e}")
 
 # Add command cooldown management
 from discord.ext.commands import cooldown, BucketType
@@ -139,9 +241,21 @@ async def on_ready():
             exchange_client=trading_bot.client if hasattr(trading_bot, 'client') else None
         )
         logger.info("Optimization manager initialized successfully")
+        
+        # Start health monitoring and HTTP server
+        asyncio.create_task(health_monitor())
+        asyncio.create_task(start_health_server())
+        
+        # Update health status to healthy
+        update_health_status(True)
+        
+        logger.info(f"Bot is ready! Connected to {len(bot.guilds)} guilds")
+        logger.info(f"Health monitoring started - Health server available at http://localhost:8080/health")
+        
     except Exception as e:
         logger.error(f"Failed to initialize bot components: {e}")
         traceback.print_exc()
+        update_health_status(False)
 
 @bot.command(name='help')
 async def help_menu(ctx):
@@ -162,6 +276,7 @@ async def help_menu(ctx):
         "b!tip: Get some tips about Trading Bot\n"
         "b!exchanges: List available exchanges\n"
         "b!test_connection: Test connection to exchanges\n"
+        "b!health: Check bot health status\n"
         "b!categories: Show a list of all available categories\n"
     )
     embed.add_field(name="\u200b", value=getting_started_text, inline=False)
@@ -521,6 +636,48 @@ async def test_binance_connection(ctx):
         await ctx.send("Connection to Binance API successful! ✅")
     else:
         await ctx.send("Failed to connect to Binance API. Check logs for details. ❌")
+
+@bot.command(name='health')
+async def bot_health(ctx):
+    """Check the bot's health status and system information"""
+    try:
+        uptime = datetime.now() - startup_time
+        
+        embed = discord.Embed(title="🏥 Bot Health Status", color=0x00ff00 if bot_healthy else 0xff0000)
+        
+        # Basic status
+        embed.add_field(name="Overall Status", value="🟢 Healthy" if bot_healthy else "🔴 Unhealthy", inline=True)
+        embed.add_field(name="Discord Connection", value="🟢 Connected" if bot.is_ready() else "🔴 Disconnected", inline=True)
+        embed.add_field(name="Trading Bot", value="🟢 Ready" if trading_bot is not None else "🔴 Not Ready", inline=True)
+        
+        # Uptime and performance
+        embed.add_field(name="Uptime", value=f"{uptime.days}d {uptime.seconds//3600}h {(uptime.seconds%3600)//60}m", inline=True)
+        embed.add_field(name="Last Heartbeat", value=last_heartbeat.strftime('%H:%M:%S'), inline=True)
+        embed.add_field(name="Environment", value=os.getenv("ENVIRONMENT", "development"), inline=True)
+        
+        # Guild information
+        if bot.is_ready():
+            embed.add_field(name="Guilds", value=len(bot.guilds), inline=True)
+            embed.add_field(name="Users", value=sum(guild.member_count for guild in bot.guilds), inline=True)
+        else:
+            embed.add_field(name="Guilds", value="N/A", inline=True)
+            embed.add_field(name="Users", value="N/A", inline=True)
+        
+        # Exchange connection status
+        exchange_status = "🟢 Connected" if trading_bot and hasattr(trading_bot, 'client') else "🔴 Disconnected"
+        embed.add_field(name="Exchange", value=exchange_status, inline=True)
+        
+        # Health server info
+        embed.add_field(name="Health Endpoint", value="http://localhost:8080/health", inline=False)
+        
+        embed.set_footer(text=f"Health check by {ctx.author.display_name} | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        await ctx.send(embed=embed)
+        
+    except Exception as e:
+        error_embed = discord.Embed(title="❌ Health Check Error", color=0xff0000)
+        error_embed.add_field(name="Error", value=str(e), inline=False)
+        await ctx.send(embed=error_embed)
 
 @bot.command(name='indicator')
 async def analyze_indicator(ctx, indicator_name: str, symbol: str, interval: str = "1h", *args):
