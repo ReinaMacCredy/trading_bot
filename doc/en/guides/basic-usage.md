@@ -159,6 +159,50 @@ See how strategies perform visually:
 b!strategy_chart bollinger_bands BTC 4h
 ```
 
+## 📊 Order History & Command Analytics
+
+### Viewing Order History
+
+Track all your trading activity with the order history command:
+
+```discord
+b!orders
+```
+
+This displays:
+- Recent orders with timestamps
+- Order details (symbol, side, amount, price)
+- Order status and type
+- Rich formatted embed for easy reading
+
+### Command Usage Analytics
+
+Monitor which bot features you use most:
+
+```discord
+b!actcmd      # Show commands you've used
+b!inactcmd    # Show commands you haven't used
+b!cmdsta      # Complete command status summary
+```
+
+These commands help you:
+- **Track bot usage patterns**
+- **Discover unused features**
+- **Monitor command activity**
+- **Optimize your trading workflow**
+
+**Example Output:**
+```
+🎯 Active Commands
+analyze, balance, chart, generate_signal, help, price
+
+📋 Inactive Commands  
+advanced_buy, backtest, optimize_params, position_size
+
+📊 Command Status Summary
+Active: 6 commands | Inactive: 4 commands
+```
+
 ## 💰 Basic Trading (Live Trading)
 
 ⚠️ **Important**: Only use live trading commands if you have:

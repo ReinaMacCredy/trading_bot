@@ -32,6 +32,8 @@ A professional-grade Discord bot for cryptocurrency trading signals, analysis, a
 - **Machine learning optimization** (optional)
 - **Performance tracking** and analytics
 - **Security features** with encrypted API key storage
+- **Order history tracking** with comprehensive trade analytics
+- **Command usage monitoring** for bot performance insights
 
 ## 🏗️ Architecture
 
@@ -199,81 +201,55 @@ For detailed hosting instructions, see our **[Comprehensive Hosting Guide](doc/e
 
 ## 📋 Available Commands
 
-### **🎯 Signal Generation**
+All commands use the `b!` prefix for Discord.
 
-- **`b!generate_signal <symbol> [strategy] [risk_reward]`**
-  - Generate trading signal with real market data
-  - Example: `b!generate_signal BTC SC02 2.5`
+### **💹 Trading Commands**
+```
+b!buy <symbol> <quantity>     # Place market buy order
+b!sell <symbol> <quantity>    # Place market sell order  
+b!price <symbol>             # Get current price
+b!balance                    # Check account balance
+b!orders                     # View recent order history
+```
 
-- **`b!market_signals [count]`**
-  - Generate signals for top market cap coins
-  - Example: `b!market_signals 5`
+### **📊 Analysis Commands**
+```
+b!chart <symbol>             # Generate price chart
+b!signal <symbol>            # Generate trading signal
+b!signals                    # Show recent signals
+b!analyze <symbol>           # Technical analysis
+b!indicators <symbol>        # Available indicators
+```
 
-- **`b!live_signal [channel_id]`**
-  - Send live signal to specified channel
-  - Example: `b!live_signal 123456789012345678`
+### **⚙️ Configuration Commands**
+```
+b!risk <percentage>          # Set risk per trade
+b!setdaily <percentage>      # Set daily loss limit
+b!settings                   # View current settings
+b!status                     # Bot status and health
+```
 
-### **📊 Advanced Analysis**
+### **📈 Strategy Commands**
+```
+b!optimize <symbol>          # Optimize parameters
+b!backtest <symbol>          # Run strategy backtest
+b!strategy <name>            # Switch trading strategy
+```
 
-- **`b!dual_macd_rsi <symbol> [interval] [higher_tf]`**
-  - Dual timeframe MACD+RSI analysis
-  - Example: `b!dual_macd_rsi BTC 1h 4h`
+### **🔍 Information Commands**
+```
+b!help                       # Show help (2-page system)
+b!actcmd                     # Show active commands
+b!inactcmd                   # Show inactive commands  
+b!cmdsta                     # Show command status summary
+```
 
-- **`b!market_regime <symbol> [timeframe]`**
-  - Detect market regime and optimize parameters
-  - Example: `b!market_regime ETH 1h`
-
-- **`b!indicator <name> <symbol> [interval] [params]`**
-  - Analyze with specific indicators (RSI, MACD, EMA)
-  - Example: `b!indicator rsi BTC 1h 14 30 70`
-
-### **⚖️ Risk Management**
-
-- **`b!risk_settings [risk] [daily_loss] [trailing_stop]`**
-  - Update risk parameters (percentages)
-  - Example: `b!risk_settings 2 5 1.5`
-
-- **`b!position_size <symbol> <entry> <stop_loss>`**
-  - Calculate optimal position size
-  - Example: `b!position_size BTC 60000 58500`
-
-- **`b!position_size_advanced <symbol> [balance] [risk_percent]`**
-  - Advanced position sizing with dynamic risk
-  - Example: `b!position_size_advanced BTC 1000 2.0`
-
-### **🔧 Optimization**
-
-- **`b!optimize_params [symbol] [timeframe]`**
-  - Grid search parameter optimization
-  - Example: `b!optimize_params BTC 1h`
-
-- **`b!genetic_optimize <symbol> [timeframe] [generations]`**
-  - Genetic algorithm optimization
-  - Example: `b!genetic_optimize ETH 1h 20`
-
-### **💰 Trading**
-
-- **`b!advanced_buy <symbol> <quantity> [tp] [sl]`**
-  - Advanced buy with TP/SL orders
-  - Example: `b!advanced_buy BTC 0.01 61500 58500`
-
-- **`b!price <symbol>`** - Get current price
-- **`b!balance`** - Check account balance
-- **`b!test_connection`** - Test exchange connectivity
-
-### **📈 Charting & Visualization**
-
-- **`b!chart <symbol> [interval] [limit]`**
-  - Generate price charts
-  - Example: `b!chart ETH 4h 50`
-
-- **`b!indicator_chart <indicator> <symbol> [interval]`**
-  - Chart with indicator visualization
-  - Example: `b!indicator_chart macd ETH 4h`
-
-- **`b!strategy_chart <strategy> <symbol> [interval]`**
-  - Chart with strategy signals
-  - Example: `b!strategy_chart bollinger_bands ETH 4h`
+### **📊 Order History & Analytics**
+- **Comprehensive order tracking** with persistent history storage
+- **Real-time order recording** for all trade types (market, limit, stop, OCO)
+- **Command usage analytics** to monitor bot performance and user patterns
+- **Rich order history display** with detailed order information and timestamps
+- **Command status monitoring** showing which features are actively used
 
 ## ⚙️ Configuration System
 
