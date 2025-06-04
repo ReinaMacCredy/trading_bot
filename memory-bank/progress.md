@@ -145,6 +145,7 @@ The Discord trading bot has reached **production-ready status** with a professio
 - ✅ **Discord.py help command** conflicts
 - ✅ **Duplicate signal generation** issues
 - ✅ **Memory management** for configuration loading
+- ✅ **IndicatorFactory import** fix for dual MACD+RSI command
 
 ### **⚠️ Minor Remaining Issues**
 - Limited to in-memory storage (database integration ready but not enabled)

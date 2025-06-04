@@ -9,6 +9,7 @@ import traceback
 from discord import File
 from legacy.trading import TradingBot
 from legacy.bot import create_signal_embed  # Only import the create_signal_embed function, not the TradingSignalBot
+from legacy.indicators import IndicatorFactory
 from datetime import datetime
 import random
 import ccxt
