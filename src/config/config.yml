@@ -46,7 +46,7 @@ trading:
 
 # Discord Configuration
 discord:
-  command_prefix: "b!"
+  command_prefix: "/"
   channels:
     signals: "signals"
     alerts: "alerts" 

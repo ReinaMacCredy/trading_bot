@@ -40,7 +40,7 @@ class IndicatorConfig:
 @dataclass
 class DiscordConfig:
     """Discord bot configuration"""
-    command_prefix: str = "b!"
+    command_prefix: str = "/"
     channels: Dict[str, str] = field(default_factory=lambda: {
         "signals": "signals",
         "alerts": "alerts",
