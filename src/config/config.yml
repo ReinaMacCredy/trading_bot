@@ -65,6 +65,7 @@ discord:
 
 # Exchange Configuration
 exchanges:
+  # Primary exchange (current default)
   binance:
     name: "binance"
     sandbox: true
@@ -73,11 +74,36 @@ exchanges:
     retry_delay: 1000  # milliseconds
     timeout: 10
     
+  # MEXC Global (MEXV) support
+  mexc:
+    name: "mexc"
+    sandbox: true
+    rate_limit: 1000  # requests per minute
+    retry_attempts: 3
+    retry_delay: 1000  # milliseconds
+    timeout: 10
+    
+  # MT5 Configuration (requires custom implementation)
+  mt5:
+    name: "mt5"
+    enabled: false  # Set to true when custom MT5 integration is implemented
+    # Note: MT5 requires custom implementation as it's not supported by CCXT
+    server: "MetaQuotes-Demo"  # Demo server for testing
+    path: "C:\\Program Files\\MetaTrader 5\\terminal64.exe"  # Windows path
+    timeout: 60
+    
+  # All supported CCXT exchanges
   supported_exchanges:
     - binance
+    - mexc      # MEXC Global (MEXV)
     - coinbase
     - kraken
     - bybit
+    - kucoin
+    - gate
+    - bitget
+    - okx
+    - htx
 
 # Monitoring & Alerts
 monitoring:
