@@ -25,6 +25,10 @@ from src.trading.genetic_optimizer import GeneticOptimizer
 from src.trading.ml_optimizer import MLOptimizer
 from src.trading.risk_manager import DynamicRiskManager
 
+# Import command functions
+from src.bot.commands.history_commands import status_commands, active_commands, inactive_commands, order_history
+from src.trading.order_history import OrderHistory
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -69,6 +73,32 @@ intents.message_content = True
 bot = commands.Bot(command_prefix=discord_config.command_prefix, intents=intents, help_command=None)
 trading_bot = None
 optimization_manager = None
+
+# Add command usage tracking for the bot
+bot.command_usage = {}
+
+# Add order history functionality
+bot.order_history = OrderHistory()
+
+# Create a simple exchange client mock that provides order history
+class ExchangeClientMock:
+    def __init__(self, order_history):
+        self.order_history_obj = order_history
+    
+    def get_order_history(self):
+        return self.order_history_obj.get_all_orders()
+
+bot.exchange_client = ExchangeClientMock(bot.order_history)
+
+def get_command_status():
+    """Return lists of active and inactive commands"""
+    all_commands = [cmd.name for cmd in bot.commands]
+    active = list(bot.command_usage.keys())
+    inactive = [c for c in all_commands if c not in active]
+    return active, inactive
+
+# Attach the method to the bot
+bot.get_command_status = get_command_status
 
 # Health monitoring variables
 bot_healthy = False
@@ -256,6 +286,13 @@ async def on_ready():
         logger.error(f"Failed to initialize bot components: {e}")
         traceback.print_exc()
         update_health_status(False)
+
+@bot.event
+async def on_command(ctx):
+    """Track command usage"""
+    if ctx.command:
+        bot.command_usage[ctx.command.name] = datetime.now()
+        logger.debug(f"Command executed: {ctx.command.name} by {ctx.author}")
 
 @bot.command(name='help')
 async def help_menu(ctx):
@@ -445,6 +482,17 @@ async def buy(ctx, symbol: str, quantity: float):
     order = trading_bot.place_order(symbol, 'BUY', quantity)
     
     if order:
+        # Add order to history
+        current_price = trading_bot.get_price(symbol)
+        bot.order_history.add_order(
+            order_id=str(order.get('orderId', '')),
+            symbol=symbol,
+            side='BUY',
+            amount=quantity,
+            price=float(current_price) if current_price else 0.0,
+            status='placed',
+            order_type='market'
+        )
         await ctx.send(f"Order placed successfully! Order ID: {order['orderId']}")
     else:
         await ctx.send("Failed to place order. Check logs for details.")
@@ -469,6 +517,17 @@ async def sell(ctx, symbol: str, quantity: float):
     order = trading_bot.place_order(symbol, 'SELL', quantity)
     
     if order:
+        # Add order to history
+        current_price = trading_bot.get_price(symbol)
+        bot.order_history.add_order(
+            order_id=str(order.get('orderId', '')),
+            symbol=symbol,
+            side='SELL',
+            amount=quantity,
+            price=float(current_price) if current_price else 0.0,
+            status='placed',
+            order_type='market'
+        )
         await ctx.send(f"Order placed successfully! Order ID: {order['orderId']}")
     else:
         await ctx.send("Failed to place order. Check logs for details.")
@@ -1841,6 +1900,26 @@ async def advanced_position_size(ctx, symbol: str, account_balance: float = 1000
         await ctx.send(f"Error calculating position size: {str(e)}")
         logger.error(f"Position size calculation error: {e}")
         traceback.print_exc()
+
+@bot.command(name='cmdsta')
+async def command_status(ctx):
+    """Show all commands grouped by active and inactive"""
+    await status_commands(ctx)
+
+@bot.command(name='actcmd')
+async def active_commands_cmd(ctx):
+    """Show commands that have been used"""
+    await active_commands(ctx)
+
+@bot.command(name='inactcmd')
+async def inactive_commands_cmd(ctx):
+    """Show commands that exist but haven't been used"""
+    await inactive_commands(ctx)
+
+@bot.command(name='orders')
+async def order_history_cmd(ctx):
+    """Display recent order history"""
+    await order_history(ctx)
 
 def run_bot():
     """Run the Discord bot"""
