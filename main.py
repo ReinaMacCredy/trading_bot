@@ -7,8 +7,8 @@ from dotenv import load_dotenv
 import os
 import traceback
 from discord import File
-from trading import TradingBot
-from bot import create_signal_embed  # Only import the create_signal_embed function, not the TradingSignalBot
+from legacy.trading import TradingBot
+from legacy.bot import create_signal_embed  # Only import the create_signal_embed function, not the TradingSignalBot
 from datetime import datetime
 import random
 import ccxt
