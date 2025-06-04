@@ -17,6 +17,7 @@ from src.trading.exchange_client import ExchangeClient
 from src.trading.strategies import StrategyManager
 from src.trading.indicators import TechnicalIndicators
 from src.trading.risk_manager import RiskManager
+from src.trading.order_history import OrderHistory
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +61,8 @@ class TradingBotCore(commands.Bot):
         self.command_count = 0
         self.error_count = 0
         self.uptime_start = None
+        self.command_usage: Dict[str, datetime] = {}
+        self.order_history = OrderHistory()
         
         self._setup_logging()
         
@@ -101,7 +104,8 @@ class TradingBotCore(commands.Bot):
             self.exchange_client = ExchangeClient(
                 exchange_name=self.config.exchange.name,
                 sandbox=self.config.exchange.sandbox,
-                config=self.config
+                config=self.config,
+                order_history=self.order_history
             )
             
             # Test exchange connection
@@ -180,6 +184,8 @@ class TradingBotCore(commands.Bot):
     async def on_command(self, ctx):
         """Called before every command"""
         self.command_count += 1
+        command_name = ctx.command.name if ctx.command else 'unknown'
+        self.command_usage[command_name] = datetime.now()
         logger.info(f"Command executed: {ctx.command} by {ctx.author}")
         
     async def on_command_error(self, ctx, error):
@@ -413,6 +419,13 @@ class TradingBotCore(commands.Bot):
             'exchange_connected': self.exchange_client is not None,
             'monitoring_enabled': self.monitoring_enabled
         }
+
+    def get_command_status(self) -> tuple[list[str], list[str]]:
+        """Return lists of active and inactive commands"""
+        all_commands = [cmd.name for cmd in self.commands]
+        active = list(self.command_usage.keys())
+        inactive = [c for c in all_commands if c not in active]
+        return active, inactive
         
     async def shutdown(self):
         """Gracefully shutdown the bot"""
