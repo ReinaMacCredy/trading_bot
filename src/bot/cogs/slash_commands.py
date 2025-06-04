@@ -39,9 +39,18 @@ class SlashCommands(commands.Cog):
             if not symbol.endswith('/USDT'):
                 symbol = f"{symbol}/USDT"
             
-            # Get price from exchange client
-            if hasattr(self.bot, 'exchange_client') and self.bot.exchange_client:
-                ticker = await self.bot.exchange_client.fetch_ticker(symbol)
+            # Get price from trading bot
+            trading_bot = getattr(self.bot, 'trading_bot', None)
+            if trading_bot:
+                # Use the trading bot's get_price method
+                price = trading_bot.get_price(symbol.replace('/', ''))
+                if price:
+                    ticker = {
+                        'last': price,
+                        'symbol': symbol,
+                        'percentage': 0.0,  # Mock data for now
+                        'change': 0.0
+                    }
                 
                 if ticker:
                     embed = discord.Embed(
@@ -84,7 +93,7 @@ class SlashCommands(commands.Cog):
                 else:
                     raise ValueError("Could not fetch price data")
             else:
-                raise ValueError("Exchange client not available")
+                raise ValueError("Trading bot not available")
                 
         except Exception as e:
             logger.error(f"Error in price slash command: {e}")
@@ -119,15 +128,14 @@ class SlashCommands(commands.Cog):
                 symbol = f"{symbol}/USDT"
             
             # Check if trading bot is available
-            if not hasattr(self.bot, 'exchange_client') or not self.bot.exchange_client:
+            trading_bot = getattr(self.bot, 'trading_bot', None)
+            if not trading_bot:
                 raise ValueError("Trading system not available")
             
             # Get market data
-            ticker = await self.bot.exchange_client.fetch_ticker(symbol)
-            if not ticker:
+            current_price = trading_bot.get_price(symbol.replace('/', ''))
+            if not current_price:
                 raise ValueError("Could not fetch market data")
-            
-            current_price = ticker.get('last', 0)
             
             # Generate signal data (simplified version)
             signal_type = random.choice(["BUY", "SELL"])

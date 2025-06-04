@@ -3,9 +3,10 @@
 ## Repository Information
 - **GitHub Repository**: https://github.com/ReinaMacCredy/trading_bot
 - **Python Version**: 3.11.6 (specified in runtime.txt)
-- **Project Status**: Production-Ready
+- **Project Status**: Production-Ready with Advanced Health Monitoring
 - **Primary Deployment**: VPS cfp.io.vn (user: cfp)
-- **Command Prefix**: "/" (slash commands only)
+- **Command Prefix**: "b!" (prefix) and "/" (slash commands)
+- **Health Server**: Intelligent port selection (8080-8084) with automatic fallback
 
 ## Technology Stack
 
@@ -26,9 +27,15 @@ pyyaml>=6.0               # Configuration file management
 numpy>=1.24.0             # Numerical computing
 pandas>=2.0.0             # Data manipulation and analysis
 requests>=2.31.0          # HTTP requests
-aiohttp>=3.8.0            # Asynchronous HTTP client
+aiohttp>=3.8.0            # Asynchronous HTTP client (health server)
 python-dotenv>=1.0.0      # Environment variable management
 ```
+
+### Infrastructure Components
+- **Health Monitoring Server**: aiohttp-based HTTP server for monitoring
+- **Intelligent Port Management**: Automatic port conflict resolution
+- **Error Recovery Systems**: Graceful degradation and fallback mechanisms
+- **Real-time Status Tracking**: Comprehensive uptime and health metrics
 
 ### Development Environment
 ```bash
@@ -161,13 +168,15 @@ trading_bot/
 - Environment overrides for production flexibility
 - Smart caching for optimal performance
 
--#### 2. Bot Core (`src/bot/`)
-- **Discord Integration**: Modern Discord.py implementation using slash commands
-- **Slash Commands**: Professional implementation with discord.app_commands
-- **Command System**: Slash commands only with comprehensive cooldowns
+#### 2. Bot Core (`src/bot/`)
+- **Discord Integration**: Modern Discord.py implementation with dual command support
+- **Dual Command System**: Both prefix commands (b!) and slash commands (/)
+- **Health Monitoring**: Intelligent port selection with fallback mechanisms  
+- **Error Recovery**: Graceful handling of port conflicts and connection issues
 - **Event Handling**: Real-time Discord event processing
 - **Help System**: 2-page categorized command reference for both command types
 - **Command Synchronization**: Automatic and manual sync capabilities for slash commands
+- **Production Reliability**: Advanced health monitoring with uptime tracking
 
 #### 3. Trading Engine (`src/trading/`)
 - **Multi-Exchange Support**: Binance, Coinbase, Kraken, Bybit via CCXT

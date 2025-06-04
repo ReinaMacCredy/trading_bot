@@ -3,8 +3,9 @@
 ## Repository Information
 - **GitHub Repository**: https://github.com/ReinaMacCredy/trading_bot
 - **Python Version**: 3.11.6
-- **Command Prefix**: "/" (slash commands only)
+- **Command Prefix**: "b!" (prefix) and "/" (slash commands)
 - **Production VPS**: cfp.io.vn (user: cfp)
+- **Health Monitoring**: Intelligent port selection with automatic fallback
 
 ## Architecture Overview
 
@@ -29,18 +30,21 @@ flowchart TD
 
 ### 1. Discord Interface (`src/bot/`)
 - Handles connection to Discord API using discord.py
-- Defines bot class and basic functionality
+- Dual command system supporting both prefix (b!) and slash (/) commands
 - Manages events like `on_ready` and message processing
 - Provides the interface between Discord and bot logic
 - Implements professional help system with 2-page categorization
+- Advanced health monitoring with intelligent port selection
+- Automatic error recovery and graceful degradation
 
 ### 2. Command Handler (`src/bot/commands/`)
-- Processes user commands via slash commands
-- Routes requests to appropriate modules
+- Processes user commands via both prefix and slash commands
+- Routes requests to appropriate modules with proper bot integration
 - Handles command arguments and validation
 - Returns responses to users with professional formatting
 - Implements command cooldowns to prevent duplicates
 - Supports advanced commands for technical analysis
+- Enhanced error handling with graceful fallback mechanisms
 
 ### 3. Configuration System (`src/config/`)
 - **Revolutionary YAML + Environment Variable Integration**
@@ -119,6 +123,13 @@ flowchart TD
 - Dataclass mapping for type safety
 - Environment overrides for production deployment
 - Smart caching for optimal performance
+
+### Health Monitoring Pattern
+- Intelligent port selection with automatic fallback
+- Real-time health status tracking with uptime metrics
+- Multiple health endpoints (health, metrics, healthz)
+- Graceful degradation when services are unavailable
+- Production-ready monitoring with external API support
 
 ## Data Flow
 

@@ -90,6 +90,19 @@ class ExchangeClientMock:
     
     def get_order_history(self):
         return self.order_history_obj.get_all_orders()
+    
+    def fetch_ticker(self, symbol):
+        """Mock method for slash commands that need ticker data"""
+        return {
+            'symbol': symbol,
+            'last': 50000.0,
+            'percentage': 2.5,
+            'change': 1200.0
+        }
+    
+    def get_price(self, symbol):
+        """Mock method for price queries"""
+        return 50000.0
 
 bot.exchange_client = ExchangeClientMock(bot.order_history)
 
@@ -189,14 +202,28 @@ async def start_health_server():
     app.router.add_get('/metrics', metrics_endpoint)
     app.router.add_get('/healthz', health_endpoint)  # Kubernetes style
     
-    try:
-        runner = web.AppRunner(app)
-        await runner.setup()
-        site = web.TCPSite(runner, '0.0.0.0', 8080)
-        await site.start()
-        logger.info("Health server started on port 8080")
-    except Exception as e:
-        logger.error(f"Failed to start health server: {e}")
+    # Try multiple ports if the default is in use
+    ports_to_try = [8080, 8081, 8082, 8083, 8084]
+    for port in ports_to_try:
+        try:
+            runner = web.AppRunner(app)
+            await runner.setup()
+            site = web.TCPSite(runner, '0.0.0.0', port)
+            await site.start()
+            logger.info(f"Health server started on port {port}")
+            return
+        except OSError as e:
+            if e.errno == 48:  # Address already in use
+                logger.warning(f"Port {port} is already in use, trying next port...")
+                continue
+            else:
+                logger.error(f"Failed to start health server on port {port}: {e}")
+                break
+        except Exception as e:
+            logger.error(f"Failed to start health server on port {port}: {e}")
+            break
+    
+    logger.error("Failed to start health server on any available port")
 
 # Add command cooldown management
 from discord.ext.commands import cooldown, BucketType
@@ -267,6 +294,7 @@ async def on_ready():
     global trading_bot, optimization_manager
     try:
         trading_bot = TradingBot()
+        bot.trading_bot = trading_bot
         logger.info("Trading bot initialized successfully")
         
         # Initialize optimization manager
@@ -305,7 +333,7 @@ async def on_ready():
         update_health_status(True)
         
         logger.info(f"Bot is ready! Connected to {len(bot.guilds)} guilds")
-        logger.info(f"Health monitoring started - Health server available at http://localhost:8080/health")
+        logger.info(f"Health monitoring started - Health server will attempt to start on available ports")
         
     except Exception as e:
         logger.error(f"Failed to initialize bot components: {e}")
@@ -724,32 +752,40 @@ async def test_binance_connection(ctx):
 @bot.command(name='sync')
 async def sync_commands(ctx, guild_id: int = None):
     """Sync slash commands (Admin only)"""
-    # Check if user is bot owner or has admin permissions
-    if not (ctx.author.id == bot.owner_id or ctx.author.guild_permissions.administrator):
-        await ctx.send("❌ You don't have permission to use this command.")
+    if not ctx.author.guild_permissions.administrator:
+        await ctx.send("❌ You need administrator permissions to sync commands.")
         return
     
     try:
-        if hasattr(bot, 'sync_slash_commands'):
-            status_msg = await ctx.send("🔄 Syncing slash commands...")
-            success = await bot.sync_slash_commands(guild_id)
-            
-            if success:
-                embed = discord.Embed(
+        # If no guild_id provided, use current guild for instant sync
+        if guild_id is None:
+            guild_id = ctx.guild.id if ctx.guild else None
+        
+        status_msg = await ctx.send("🔄 Syncing slash commands...")
+        
+        if guild_id:
+            # Sync to specific guild (instant)
+            guild = discord.Object(id=guild_id)
+            synced = await bot.tree.sync(guild=guild)
+            await status_msg.edit(
+                embed=discord.Embed(
                     title="✅ Slash Commands Synced",
-                    description="Slash commands have been synced successfully!",
+                    description=f"Synced **{len(synced)} commands** to **{ctx.guild.name}** (instant)",
                     color=0x00ff00
                 )
-                if guild_id:
-                    embed.add_field(name="Scope", value=f"Guild: {guild_id}", inline=False)
-                else:
-                    embed.add_field(name="Scope", value="Global (may take up to 1 hour)", inline=False)
-                
-                await status_msg.edit(content="", embed=embed)
-            else:
-                await status_msg.edit(content="❌ Failed to sync slash commands. Check logs for details.")
+            )
+            logger.info(f"Synced {len(synced)} slash commands to guild {guild_id}")
         else:
-            await ctx.send("❌ Slash command sync not available.")
+            # Global sync (takes up to 1 hour)
+            synced = await bot.tree.sync()
+            await status_msg.edit(
+                embed=discord.Embed(
+                    title="✅ Slash Commands Synced Globally",
+                    description=f"Synced **{len(synced)} commands** globally (takes up to 1 hour)",
+                    color=0x00ff00
+                )
+            )
+            logger.info(f"Synced {len(synced)} slash commands globally")
             
     except Exception as e:
         logger.error(f"Error in sync command: {e}")
@@ -1979,6 +2015,76 @@ async def inactive_commands_cmd(ctx):
 async def order_history_cmd(ctx):
     """Display recent order history"""
     await order_history(ctx)
+
+@bot.command(name='slashinfo')
+async def slash_info(ctx):
+    """Check slash commands status and provide troubleshooting info"""
+    try:
+        embed = discord.Embed(
+            title="🔍 Slash Commands Diagnostic",
+            color=0x0099ff,
+            timestamp=datetime.now()
+        )
+        
+        # Check registered commands
+        app_commands = bot.tree.get_commands()
+        embed.add_field(
+            name="📝 Registered Commands",
+            value=f"**{len(app_commands)} commands** registered:\n" + 
+                  "\n".join([f"• `/{cmd.name}` - {cmd.description[:50]}..." for cmd in app_commands[:5]]),
+            inline=False
+        )
+        
+        # Bot permissions info
+        if ctx.guild:
+            bot_member = ctx.guild.get_member(bot.user.id)
+            permissions = bot_member.guild_permissions
+            
+            required_perms = [
+                ("Use Slash Commands", permissions.use_slash_commands),
+                ("Send Messages", permissions.send_messages),
+                ("Embed Links", permissions.embed_links),
+                ("View Channel", permissions.view_channel)
+            ]
+            
+            perms_text = "\n".join([
+                f"{'✅' if has_perm else '❌'} {perm_name}" 
+                for perm_name, has_perm in required_perms
+            ])
+            
+            embed.add_field(
+                name="🔐 Bot Permissions",
+                value=perms_text,
+                inline=True
+            )
+        
+        # Troubleshooting steps
+        troubleshooting = (
+            "**If slash commands don't appear:**\n"
+            "1. Check bot has `applications.commands` scope\n"
+            "2. Use `b!sync` to sync to this server\n"
+            "3. Wait up to 1 hour for global commands\n"
+            "4. Try kicking and re-inviting the bot\n"
+            "5. Restart Discord app completely"
+        )
+        
+        embed.add_field(
+            name="🛠️ Troubleshooting",
+            value=troubleshooting,
+            inline=False
+        )
+        
+        embed.add_field(
+            name="📱 Quick Fix",
+            value="Run `b!sync` to instantly sync commands to this server!",
+            inline=False
+        )
+        
+        await ctx.send(embed=embed)
+        
+    except Exception as e:
+        logger.error(f"Error in slashinfo command: {e}")
+        await ctx.send(f"❌ Error getting slash command info: {str(e)}")
 
 def run_bot():
     """Run the Discord bot"""
