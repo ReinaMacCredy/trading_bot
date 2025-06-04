@@ -6,8 +6,8 @@ import pandas as pd
 from datetime import datetime
 import matplotlib.pyplot as plt
 import io
-from strategies import get_strategy
-from indicators import IndicatorFactory
+from legacy.strategies import get_strategy
+from legacy.indicators import IndicatorFactory
 import ccxt
 import numpy as np
 
