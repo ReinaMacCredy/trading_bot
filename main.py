@@ -275,6 +275,28 @@ async def on_ready():
         )
         logger.info("Optimization manager initialized successfully")
         
+        # Load slash commands cog
+        try:
+            await bot.load_extension('src.bot.cogs.slash_commands')
+            logger.info("Slash commands cog loaded successfully")
+        except Exception as e:
+            logger.error(f"Failed to load slash commands cog: {e}")
+        
+        # Load RL commands cog
+        try:
+            rl_commands_cog = RLCommands(bot)
+            await bot.add_cog(rl_commands_cog)
+            logger.info("RL commands cog loaded successfully")
+        except Exception as e:
+            logger.error(f"Failed to load RL commands cog: {e}")
+        
+        # Sync slash commands
+        try:
+            synced = await bot.tree.sync()
+            logger.info(f"Synced {len(synced)} slash command(s)")
+        except Exception as e:
+            logger.error(f"Failed to sync slash commands: {e}")
+        
         # Start health monitoring and HTTP server
         asyncio.create_task(health_monitor())
         asyncio.create_task(start_health_server())
