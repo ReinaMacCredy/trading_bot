@@ -12,6 +12,7 @@ from dataclasses import dataclass
 import time
 from datetime import datetime, timedelta
 from src.config.config_loader import get_config
+from .order_history import OrderHistory
 import os
 
 logger = logging.getLogger(__name__)
@@ -44,11 +45,12 @@ class ExchangeClient:
     Includes rate limiting, retry logic, and comprehensive error handling
     """
     
-    def __init__(self, exchange_name: str = None, sandbox: bool = True, config=None):
+    def __init__(self, exchange_name: str = None, sandbox: bool = True, config=None, order_history: OrderHistory | None = None):
         self.config = config or get_config()
         self.exchange_name = exchange_name or self.config.exchange.name
         self.sandbox = sandbox or self.config.exchange.sandbox
         self.exchange = None
+        self.order_history = order_history or OrderHistory()
         self._last_request_time = {}
         self._rate_limit_delay = 1.0  # Minimum delay between requests
         
@@ -274,8 +276,8 @@ class ExchangeClient:
                 return self.exchange.create_market_order(symbol, side, amount)
             
             order = await self._retry_request(_place_order)
-            
-            return OrderResult(
+
+            result = OrderResult(
                 success=True,
                 order_id=order.get('id'),
                 symbol=symbol,
@@ -286,6 +288,18 @@ class ExchangeClient:
                 fee=order.get('fee'),
                 metadata=order
             )
+
+            self.order_history.add_order(
+                order_id=result.order_id or '',
+                symbol=symbol,
+                side=side,
+                amount=amount,
+                price=result.price,
+                status='placed',
+                order_type='market'
+            )
+
+            return result
             
         except Exception as e:
             logger.error(f"Error placing market order: {e}")
@@ -323,8 +337,8 @@ class ExchangeClient:
                 return self.exchange.create_limit_order(symbol, side, amount, price)
             
             order = await self._retry_request(_place_order)
-            
-            return OrderResult(
+
+            result = OrderResult(
                 success=True,
                 order_id=order.get('id'),
                 symbol=symbol,
@@ -335,6 +349,18 @@ class ExchangeClient:
                 fee=order.get('fee'),
                 metadata=order
             )
+
+            self.order_history.add_order(
+                order_id=result.order_id or '',
+                symbol=symbol,
+                side=side,
+                amount=amount,
+                price=price,
+                status='placed',
+                order_type='limit'
+            )
+
+            return result
             
         except Exception as e:
             logger.error(f"Error placing limit order: {e}")
@@ -405,8 +431,8 @@ class ExchangeClient:
                 )
             
             order = await self._retry_request(_place_oco)
-            
-            return OrderResult(
+
+            result = OrderResult(
                 success=True,
                 order_id=order.get('id'),
                 symbol=symbol,
@@ -415,6 +441,18 @@ class ExchangeClient:
                 price=price,
                 metadata=order
             )
+
+            self.order_history.add_order(
+                order_id=result.order_id or '',
+                symbol=symbol,
+                side=side,
+                amount=amount,
+                price=price,
+                status='placed',
+                order_type='oco'
+            )
+
+            return result
             
         except Exception as e:
             logger.error(f"Error placing OCO order: {e}")
@@ -457,8 +495,8 @@ class ExchangeClient:
                     return self.exchange.create_stop_market_order(symbol, side, amount, stop_price)
             
             order = await self._retry_request(_place_stop)
-            
-            return OrderResult(
+
+            result = OrderResult(
                 success=True,
                 order_id=order.get('id'),
                 symbol=symbol,
@@ -467,6 +505,18 @@ class ExchangeClient:
                 price=stop_price,
                 metadata=order
             )
+
+            self.order_history.add_order(
+                order_id=result.order_id or '',
+                symbol=symbol,
+                side=side,
+                amount=amount,
+                price=stop_price,
+                status='placed',
+                order_type='stop'
+            )
+
+            return result
             
         except Exception as e:
             logger.error(f"Error placing stop order: {e}")
@@ -502,6 +552,17 @@ class ExchangeClient:
             
             result = await self._retry_request(_cancel)
             logger.info(f"Order {order_id} cancelled successfully")
+
+            self.order_history.add_order(
+                order_id=order_id,
+                symbol=symbol,
+                side='',
+                amount=0,
+                price=0,
+                status='cancelled',
+                order_type='cancel'
+            )
+
             return True
             
         except Exception as e:
@@ -535,6 +596,10 @@ class ExchangeClient:
         except Exception as e:
             logger.error(f"Error fetching open orders: {e}")
             return []
+
+    def get_order_history(self):
+        """Return all recorded order history"""
+        return self.order_history.get_all_orders()
     
     async def get_trading_fees(self, symbol: str = None) -> Dict:
         """
