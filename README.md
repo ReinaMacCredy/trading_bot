@@ -48,10 +48,15 @@ trading_bot/
 │   │   ├── optimization_manager.py  # Parameter optimization
 │   │   └── risk_manager.py   # Risk management
 │   └── utils/            # Utilities
+├── legacy/              # Archived legacy modules
 ├── memory-bank/          # Project documentation
 ├── main.py              # Bot entry point
 └── requirements.txt     # Dependencies
 ```
+
+Legacy modules contain earlier versions of the trading engine and helper
+functions. They are kept for reference but are no longer actively
+maintained.
 
 ## 🛠️ Setup & Installation
 
