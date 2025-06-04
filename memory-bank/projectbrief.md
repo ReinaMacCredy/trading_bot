@@ -13,7 +13,7 @@ A professional-grade Discord bot that generates and displays cryptocurrency trad
 1. Format and display trading signals in Discord embeds (SC01/SC02 formats)
 2. Support signal components: entry price, take profit price, stop loss, ratio, status
 3. Include visual indicators and formatting similar to professional trading channels
-4. Allow manual signal creation via Discord commands with "b!" prefix
+4. Allow manual signal creation via Discord slash commands (`/`)
 5. Connect to cryptocurrency exchange APIs for real-time price data
 6. Support multiple signal strategies and technical analysis
 7. Implement advanced risk management and position sizing
@@ -43,7 +43,7 @@ The bot provides comprehensive trading signal generation and analysis:
 - ✅ Trading signals match professional SC01/SC02 formats
 - ✅ Signal embeds display properly in Discord with live market data
 - ✅ All required data fields are present and formatted correctly
-- ✅ Commands work reliably with "b!" prefix and proper cooldowns
+- ✅ Commands work reliably as slash commands with proper cooldowns
 - ✅ System handles errors gracefully with user-friendly messages
 - ✅ Bot achieves 100% startup success rate
 - ✅ Real-time signal generation under 1 second response time

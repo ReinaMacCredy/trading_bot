@@ -322,15 +322,15 @@ class SlashCommands(commands.Cog):
                 inline=False
             )
             
-            # Prefix Commands section
+            # Slash-only Commands section
             prefix_commands = (
-                "`b!market_signals` - Generate multiple market signals\n"
-                "`b!live_signal` - Send live trading signal\n"
-                "`b!health` - Check bot health status\n"
-                "`b!optimize_params` - Optimize strategy parameters"
+                "`/market_signals` - Generate multiple market signals\n"
+                "`/live_signal` - Send live trading signal\n"
+                "`/health` - Check bot health status\n"
+                "`/optimize_params` - Optimize strategy parameters"
             )
             embed.add_field(
-                name="📝 Prefix Commands",
+                name="📝 Slash Commands",
                 value=prefix_commands,
                 inline=False
             )

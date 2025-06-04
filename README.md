@@ -4,9 +4,9 @@ A professional-grade Discord bot for cryptocurrency trading signals, analysis, a
 
 ## 🚀 Key Features
 
-### **Modern Discord Integration**
+-### **Modern Discord Integration**
 - **Slash Commands Support** - Modern Discord UI with auto-completion and validation
-- **Dual Command System** - Both traditional prefix (`b!`) and slash (`/`) commands
+- **Slash Command System** - All commands use the modern `/` syntax
 - **Interactive Parameters** - Type-safe command parameters with suggestions
 - **Rich Embeds** - Professional formatting with real-time data visualization
 
@@ -207,7 +207,7 @@ For detailed hosting instructions, see our **[Comprehensive Hosting Guide](doc/e
 
 ## 📋 Available Commands
 
-The bot supports both modern **slash commands** (`/`) and traditional **prefix commands** (`b!`).
+All bot interactions are handled through modern **slash commands** (`/`).
 
 ### **⚡ Slash Commands (Recommended)**
 Modern Discord interface with auto-completion and parameter validation:
@@ -293,7 +293,7 @@ trading:
     secondary: "4h"
 
 discord:
-  command_prefix: "b!"
+  command_prefix: "/"
   channels:
     signals: "signals"
     alerts: "alerts"

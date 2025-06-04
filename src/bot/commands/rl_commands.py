@@ -62,8 +62,8 @@ async def rl_train_single(ctx, algorithm: str, timesteps: int = 50000):
     """
     Train a single RL agent
     
-    Usage: b!rltrain <algorithm> [timesteps]
-    Example: b!rltrain PPO 100000
+    Usage: /rltrain <algorithm> [timesteps]
+    Example: /rltrain PPO 100000
     """
     if not FINRL_AVAILABLE:
         embed = Embed(title="❌ FinRL Not Available", color=0xff0000)
@@ -176,8 +176,8 @@ async def rl_train_ensemble(ctx, algorithms: str = "PPO,A2C,SAC"):
     """
     Train an ensemble of RL agents
     
-    Usage: b!rlensemble [algorithms]
-    Example: b!rlensemble PPO,A2C,SAC,TD3
+    Usage: /rlensemble [algorithms]
+    Example: /rlensemble PPO,A2C,SAC,TD3
     """
     if not FINRL_AVAILABLE:
         embed = Embed(title="❌ FinRL Not Available", color=0xff0000)
@@ -277,8 +277,8 @@ async def rl_predict(ctx, model_name: str = None, symbol: str = "BTC/USDT"):
     """
     Get RL agent prediction for trading
     
-    Usage: b!rlpredict [model_name] [symbol]
-    Example: b!rlpredict PPO_20241201_143000 ETH/USDT
+    Usage: /rlpredict [model_name] [symbol]
+    Example: /rlpredict PPO_20241201_143000 ETH/USDT
     """
     if not FINRL_AVAILABLE:
         embed = Embed(title="❌ FinRL Not Available", color=0xff0000)
@@ -300,7 +300,7 @@ async def rl_predict(ctx, model_name: str = None, symbol: str = "BTC/USDT"):
             
         if model_name is None:
             embed = Embed(title="❌ No Models Available", color=0xff0000)
-            embed.description = "No trained models found. Train a model first with `b!rltrain`"
+            embed.description = "No trained models found. Train a model first with `/rltrain`"
             await ctx.send(embed=embed)
             return
         
@@ -358,8 +358,8 @@ async def rl_ensemble_predict(ctx, ensemble_name: str = None, symbol: str = "BTC
     """
     Get ensemble prediction from multiple RL agents
     
-    Usage: b!rlensemblepredict [ensemble_name] [symbol]
-    Example: b!rlensemblepredict ensemble_20241201 ETH/USDT
+    Usage: /rlensemblepredict [ensemble_name] [symbol]
+    Example: /rlensemblepredict ensemble_20241201 ETH/USDT
     """
     if not FINRL_AVAILABLE:
         embed = Embed(title="❌ FinRL Not Available", color=0xff0000)
@@ -379,7 +379,7 @@ async def rl_ensemble_predict(ctx, ensemble_name: str = None, symbol: str = "BTC
             
         if ensemble_name is None:
             embed = Embed(title="❌ No Ensembles Available", color=0xff0000)
-            embed.description = "No ensemble models found. Train an ensemble first with `b!rlensemble`"
+            embed.description = "No ensemble models found. Train an ensemble first with `/rlensemble`"
             await ctx.send(embed=embed)
             return
         
@@ -441,7 +441,7 @@ async def rl_models(ctx):
     """
     List all trained RL models
     
-    Usage: b!rlmodels
+    Usage: /rlmodels
     """
     if not FINRL_AVAILABLE:
         embed = Embed(title="❌ FinRL Not Available", color=0xff0000)
@@ -488,7 +488,7 @@ async def rl_models(ctx):
             
             embed.add_field(name="Ensembles", value=ensemble_text, inline=False)
         
-        embed.set_footer(text="Use b!rlpredict <model_name> to get predictions")
+        embed.set_footer(text="Use /rlpredict <model_name> to get predictions")
         await ctx.send(embed=embed)
         
     except Exception as e:
@@ -501,7 +501,7 @@ async def rl_status(ctx):
     """
     Show RL training status
     
-    Usage: b!rlstatus
+    Usage: /rlstatus
     """
     if not FINRL_AVAILABLE:
         embed = Embed(title="❌ FinRL Not Available", color=0xff0000)
@@ -552,31 +552,31 @@ async def rl_help(ctx):
     """
     Show RL commands help
     
-    Usage: b!rlhelp
+    Usage: /rlhelp
     """
     embed = Embed(title="🤖 FinRL Commands Help", color=0x0099ff)
     embed.description = "Financial Reinforcement Learning integration for advanced AI trading"
     
     # Training commands
     training_commands = """
-    `b!rltrain <algorithm> [timesteps]` - Train single RL agent
-    `b!rlensemble [algorithms]` - Train ensemble of agents
-    `b!rloptimize <algorithm>` - Optimize hyperparameters
+    `/rltrain <algorithm> [timesteps]` - Train single RL agent
+    `/rlensemble [algorithms]` - Train ensemble of agents
+    `/rloptimize <algorithm>` - Optimize hyperparameters
     """
     embed.add_field(name="🏋️ Training Commands", value=training_commands, inline=False)
     
     # Prediction commands
     prediction_commands = """
-    `b!rlpredict [model] [symbol]` - Get single model prediction
-    `b!rlensemblepredict [ensemble] [symbol]` - Get ensemble prediction
+    `/rlpredict [model] [symbol]` - Get single model prediction
+    `/rlensemblepredict [ensemble] [symbol]` - Get ensemble prediction
     """
     embed.add_field(name="🔮 Prediction Commands", value=prediction_commands, inline=False)
     
     # Management commands
     management_commands = """
-    `b!rlmodels` - List all trained models
-    `b!rlstatus` - Show system status
-    `b!rlhelp` - Show this help
+    `/rlmodels` - List all trained models
+    `/rlstatus` - Show system status
+    `/rlhelp` - Show this help
     """
     embed.add_field(name="⚙️ Management Commands", value=management_commands, inline=False)
     
@@ -586,9 +586,9 @@ async def rl_help(ctx):
     
     # Examples
     examples = """
-    `b!rltrain PPO 100000` - Train PPO agent with 100k timesteps
-    `b!rlensemble PPO,A2C,SAC` - Train ensemble with 3 algorithms
-    `b!rlpredict best_model BTC/USDT` - Get prediction for BTC/USDT
+    `/rltrain PPO 100000` - Train PPO agent with 100k timesteps
+    `/rlensemble PPO,A2C,SAC` - Train ensemble with 3 algorithms
+    `/rlpredict best_model BTC/USDT` - Get prediction for BTC/USDT
     """
     embed.add_field(name="💡 Examples", value=examples, inline=False)
     

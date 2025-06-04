@@ -3,7 +3,7 @@
 ## Repository Information
 - **GitHub Repository**: https://github.com/ReinaMacCredy/trading_bot
 - **Python Version**: 3.11.6
-- **Command Prefix**: "b!" (Binance-inspired prefix)
+- **Command Prefix**: "/" (slash commands only)
 - **Production VPS**: cfp.io.vn (user: cfp)
 
 ## Architecture Overview
@@ -35,7 +35,7 @@ flowchart TD
 - Implements professional help system with 2-page categorization
 
 ### 2. Command Handler (`src/bot/commands/`)
-- Processes user commands with "b!" prefix
+- Processes user commands via slash commands
 - Routes requests to appropriate modules
 - Handles command arguments and validation
 - Returns responses to users with professional formatting
@@ -122,7 +122,7 @@ flowchart TD
 
 ## Data Flow
 
-1. **Command Input**: User enters command with "b!" prefix in Discord
+1. **Command Input**: User invokes a slash command in Discord
 2. **Cooldown Check**: Command is checked against cooldown limits
 3. **Command Processing**: Bot parses command and arguments
 4. **Configuration Loading**: System loads configuration with environment overrides
@@ -145,7 +145,7 @@ flowchart TD
 
 ### User Experience Decisions
 1. **Embed-based Output**: Used for visually appealing, structured messages
-2. **Command Prefix "b!"**: Binance-inspired prefix for brand consistency
+2. **Slash Command Interface**: Modern interaction using `/` commands
 3. **Professional Formatting**: SC01/SC02 signal formats for industry standard
 4. **Comprehensive Help**: 2-page categorized command reference
 5. **Error Handling**: User-friendly messages with helpful guidance

@@ -34,8 +34,8 @@ Successfully implemented comprehensive order tracking and command monitoring:
   - `/stats` - Display comprehensive bot statistics and system status
   - `/help` - Modern help system for slash commands and features
 - ✅ **Updated Bot Core** to automatically sync slash commands on startup
-- ✅ **Added Manual Sync Command** (`b!sync`) for administrators to force command synchronization
-- ✅ **Enhanced Help System** to include both prefix and slash commands
+- ✅ **Added Manual Sync Command** (`/sync`) for administrators to force command synchronization
+- ✅ **Enhanced Help System** now focused solely on slash commands
 - ✅ **Modern Discord Features**:
   - Interactive parameter selection with Literal types
   - Deferred responses for processing time
@@ -80,10 +80,10 @@ Successfully implemented comprehensive order tracking and command monitoring:
 - ✅ **Added automatic order tracking** to all exchange operations
 - ✅ **Created command usage monitoring** with timestamp tracking
 - ✅ **Implemented new Discord commands**:
-  - `b!orders` - Display recent order history with rich embed formatting
-  - `b!actcmd` - Show commands that have been used
-  - `b!inactcmd` - Show commands that exist but haven't been used  
-  - `b!cmdsta` - Show all commands grouped by active/inactive status
+  - `/orders` - Display recent order history with rich embed formatting
+  - `/actcmd` - Show commands that have been used
+  - `/inactcmd` - Show commands that exist but haven't been used
+  - `/cmdsta` - Show all commands grouped by active/inactive status
 - ✅ **Enhanced TradingBotCore** with command_usage tracking and get_command_status method
 - ✅ **Updated exchange client** to record orders for market, limit, stop, and OCO order types
 - ✅ **Added proper command registration** in main.py with correct imports
@@ -199,7 +199,7 @@ Successfully implemented comprehensive order tracking and command monitoring:
 
 ### **User Experience Design**
 - **Discord-Native**: Rich embeds with professional formatting
-- **Command Structure**: Intuitive "b!" prefix with logical parameter order
+- **Command Structure**: Intuitive slash-based `/` commands with logical parameter order
 - **Error Handling**: User-friendly messages with helpful guidance
 - **Response Times**: Sub-second signal generation with status updates
 - **Help System**: Comprehensive 2-page categorized command reference

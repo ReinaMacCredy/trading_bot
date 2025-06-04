@@ -5,7 +5,7 @@
 - **Python Version**: 3.11.6 (specified in runtime.txt)
 - **Project Status**: Production-Ready
 - **Primary Deployment**: VPS cfp.io.vn (user: cfp)
-- **Command Prefix**: "b!" (Binance-inspired)
+- **Command Prefix**: "/" (slash commands only)
 
 ## Technology Stack
 
@@ -66,7 +66,7 @@ The bot features a professional configuration management system that combines YA
 ```yaml
 # config/config.yaml
 discord:
-  command_prefix: "b!"
+  command_prefix: "/"
   max_message_length: 2000
 
 trading:
@@ -161,10 +161,10 @@ trading_bot/
 - Environment overrides for production flexibility
 - Smart caching for optimal performance
 
-#### 2. Bot Core (`src/bot/`)
-- **Discord Integration**: Modern Discord.py implementation with dual command system
-- **Slash Commands**: Professional implementation using discord.app_commands
-- **Command System**: Both "b!" prefix and "/" slash commands with comprehensive cooldowns
+-#### 2. Bot Core (`src/bot/`)
+- **Discord Integration**: Modern Discord.py implementation using slash commands
+- **Slash Commands**: Professional implementation with discord.app_commands
+- **Command System**: Slash commands only with comprehensive cooldowns
 - **Event Handling**: Real-time Discord event processing
 - **Help System**: 2-page categorized command reference for both command types
 - **Command Synchronization**: Automatic and manual sync capabilities for slash commands
