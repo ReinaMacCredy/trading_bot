@@ -149,10 +149,11 @@ Successfully implemented comprehensive order tracking and command monitoring:
 ## 🚀 Next Steps
 
 ### **Immediate (This Week)**
-1. **Deploy to production VPS** using updated cfp.io.vn instructions
-2. **Test production deployment** with live trading environment
-3. **Enable database storage** for production signal persistence
-4. **Performance monitoring** setup and metrics collection
+1. **Test slash commands** in production environment after deployment
+2. **Deploy to production VPS** using updated cfp.io.vn instructions
+3. **Test production deployment** with live trading environment and slash command sync
+4. **Enable database storage** for production signal persistence
+5. **Performance monitoring** setup and metrics collection
 
 ### **Short Term (Next 2 weeks)**
 1. **Advanced backtesting** implementation with historical data

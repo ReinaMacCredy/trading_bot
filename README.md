@@ -4,9 +4,15 @@ A professional-grade Discord bot for cryptocurrency trading signals, analysis, a
 
 ## 🚀 Key Features
 
+### **Modern Discord Integration**
+- **Slash Commands Support** - Modern Discord UI with auto-completion and validation
+- **Dual Command System** - Both traditional prefix (`b!`) and slash (`/`) commands
+- **Interactive Parameters** - Type-safe command parameters with suggestions
+- **Rich Embeds** - Professional formatting with real-time data visualization
+
 ### **Trading Signals & Analysis**
-- **Real-time signal generation** using live Binance market data
-- **Professional signal formatting** similar to trading channels
+- **Real-time signal generation** using live market data from multiple exchanges
+- **Professional signal formatting** similar to trading channels (SC01/SC02)
 - **Multi-timeframe analysis** with MACD+RSI strategies
 - **Advanced technical indicators** (RSI, MACD, EMA, Bollinger Bands, ATR, Stochastic)
 - **Market regime detection** and adaptive parameters
@@ -201,18 +207,29 @@ For detailed hosting instructions, see our **[Comprehensive Hosting Guide](doc/e
 
 ## 📋 Available Commands
 
-All commands use the `b!` prefix for Discord.
+The bot supports both modern **slash commands** (`/`) and traditional **prefix commands** (`b!`).
 
-### **💹 Trading Commands**
+### **⚡ Slash Commands (Recommended)**
+Modern Discord interface with auto-completion and parameter validation:
+```
+/price <symbol> [exchange]           # Get real-time cryptocurrency prices
+/signal <symbol> [strategy] [timeframe] # Generate professional trading signals  
+/stats                               # View bot statistics and system status
+/help                                # Modern help system with full feature list
+```
+
+### **💹 Trading Commands (Prefix)**
 ```
 b!buy <symbol> <quantity>     # Place market buy order
 b!sell <symbol> <quantity>    # Place market sell order  
 b!price <symbol>             # Get current price
 b!balance                    # Check account balance
 b!orders                     # View recent order history
+b!market_signals [count]     # Generate multiple market signals
+b!live_signal [channel_id]   # Send live trading signal
 ```
 
-### **📊 Analysis Commands**
+### **📊 Analysis Commands (Prefix)**
 ```
 b!chart <symbol>             # Generate price chart
 b!signal <symbol>            # Generate trading signal
@@ -221,12 +238,13 @@ b!analyze <symbol>           # Technical analysis
 b!indicators <symbol>        # Available indicators
 ```
 
-### **⚙️ Configuration Commands**
+### **⚙️ Configuration Commands (Prefix)**
 ```
 b!risk <percentage>          # Set risk per trade
 b!setdaily <percentage>      # Set daily loss limit
 b!settings                   # View current settings
-b!status                     # Bot status and health
+b!health                     # Bot health and status check
+b!sync [guild_id]           # Sync slash commands (Admin only)
 ```
 
 ### **📈 Strategy Commands**
@@ -236,9 +254,9 @@ b!backtest <symbol>          # Run strategy backtest
 b!strategy <name>            # Switch trading strategy
 ```
 
-### **🔍 Information Commands**
+### **🔍 Information & Analytics Commands (Prefix)**
 ```
-b!help                       # Show help (2-page system)
+b!help                       # Show comprehensive help system
 b!actcmd                     # Show active commands
 b!inactcmd                   # Show inactive commands  
 b!cmdsta                     # Show command status summary
@@ -367,19 +385,29 @@ Ubuntu LTS   Ubuntu 22.04 LTS
 
 ## 🚧 Development Status
 
-- ✅ **Core Bot**: Fully functional Discord integration
+- ✅ **Core Bot**: Fully functional Discord integration with dual command system
+- ✅ **Slash Commands**: Modern Discord interface with auto-completion
 - ✅ **Configuration**: Professional YAML + env system
 - ✅ **Trading Engine**: Real-time signal generation
 - ✅ **Risk Management**: Dynamic position sizing
 - ✅ **Technical Analysis**: 10+ indicators implemented
 - ✅ **Optimization**: Genetic algorithm + grid search
-- 🔄 **Machine Learning**: Basic implementation
+- ✅ **FinRL Integration**: Deep reinforcement learning capabilities
+- 🔄 **Machine Learning**: Enhanced implementation in progress
 - 🔄 **Web Dashboard**: Planned feature
 - 🔄 **Advanced Backtesting**: In development
 
 ## 📚 Documentation
 
-Comprehensive documentation is maintained in the `memory-bank/` directory:
+Comprehensive documentation is available:
+
+### **User Guides**
+- **[Slash Commands Guide](doc/en/slash-commands.md)**: Modern Discord command interface
+- **[Slash Commands (Vietnamese)](doc/vi/slash-commands.md)**: Hướng dẫn lệnh slash tiếng Việt
+- **[Hosting Guide](doc/en/setup/hosting.md)**: Complete deployment instructions
+
+### **Project Documentation**
+Maintained in the `memory-bank/` directory:
 - **Project Brief**: Core requirements and goals
 - **Technical Context**: Architecture and technologies
 - **Active Context**: Current development focus

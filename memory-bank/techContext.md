@@ -19,15 +19,15 @@
 
 ### Dependencies
 ```txt
-discord.py>=2.3.0
-ccxt>=4.0.0
-pandas-ta>=0.3.14b
-pyyaml>=6.0
-numpy>=1.24.0
-pandas>=2.0.0
-requests>=2.31.0
-aiohttp>=3.8.0
-python-dotenv>=1.0.0
+discord.py>=2.3.0         # Modern Discord API with slash commands support
+ccxt>=4.0.0               # Multi-exchange cryptocurrency trading
+pandas-ta>=0.3.14b        # Professional technical analysis indicators
+pyyaml>=6.0               # Configuration file management
+numpy>=1.24.0             # Numerical computing
+pandas>=2.0.0             # Data manipulation and analysis
+requests>=2.31.0          # HTTP requests
+aiohttp>=3.8.0            # Asynchronous HTTP client
+python-dotenv>=1.0.0      # Environment variable management
 ```
 
 ### Development Environment
@@ -162,10 +162,12 @@ trading_bot/
 - Smart caching for optimal performance
 
 #### 2. Bot Core (`src/bot/`)
-- **Discord Integration**: Professional Discord.py implementation
-- **Command System**: "b!" prefix with comprehensive cooldowns
+- **Discord Integration**: Modern Discord.py implementation with dual command system
+- **Slash Commands**: Professional implementation using discord.app_commands
+- **Command System**: Both "b!" prefix and "/" slash commands with comprehensive cooldowns
 - **Event Handling**: Real-time Discord event processing
-- **Help System**: 2-page categorized command reference
+- **Help System**: 2-page categorized command reference for both command types
+- **Command Synchronization**: Automatic and manual sync capabilities for slash commands
 
 #### 3. Trading Engine (`src/trading/`)
 - **Multi-Exchange Support**: Binance, Coinbase, Kraken, Bybit via CCXT
