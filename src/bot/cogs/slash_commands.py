@@ -18,6 +18,8 @@ class SlashCommands(commands.Cog):
     
     def __init__(self, bot):
         self.bot = bot
+        # Track processed interactions to prevent duplicate responses
+        self._processed_interactions: dict[int, float] = {}
         
     @app_commands.command(name="price", description="Get current price for a cryptocurrency")
     @app_commands.describe(
@@ -25,8 +27,8 @@ class SlashCommands(commands.Cog):
         exchange="Exchange to get price from (default: binance)"
     )
     async def price_slash(
-        self, 
-        interaction: discord.Interaction, 
+        self,
+        interaction: discord.Interaction,
         symbol: str,
         exchange: Optional[Literal["binance", "coinbase", "kraken", "bybit"]] = "binance"
     ):
@@ -35,7 +37,18 @@ class SlashCommands(commands.Cog):
         if interaction.response.is_done():
             logger.warning("Interaction already acknowledged for price command")
             return
-            
+
+        # Prevent duplicate responses if the interaction is triggered twice
+        now_ts = datetime.now().timestamp()
+        # Remove expired entries (>5 seconds old)
+        self._processed_interactions = {
+            k: t for k, t in self._processed_interactions.items() if now_ts - t < 5
+        }
+        if interaction.id in self._processed_interactions:
+            logger.warning(f"Duplicate interaction detected: {interaction.id}")
+            return
+        self._processed_interactions[interaction.id] = now_ts
+
         await interaction.response.defer()
         
         try:
