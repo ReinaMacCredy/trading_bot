@@ -91,18 +91,58 @@ class ExchangeClientMock:
     def get_order_history(self):
         return self.order_history_obj.get_all_orders()
     
-    def fetch_ticker(self, symbol):
-        """Mock method for slash commands that need ticker data"""
+    async def fetch_ticker(self, symbol):
+        """Mock async method for slash commands that need ticker data"""
         return {
             'symbol': symbol,
             'last': 50000.0,
             'percentage': 2.5,
-            'change': 1200.0
+            'change': 1200.0,
+            'bid': 49950.0,
+            'ask': 50050.0,
+            'baseVolume': 1000.0,
+            'timestamp': int(datetime.now().timestamp() * 1000)
         }
     
     def get_price(self, symbol):
         """Mock method for price queries"""
         return 50000.0
+    
+    async def fetch_ohlcv(self, symbol, timeframe='1h', limit=100, since=None):
+        """Mock async method for OHLCV data"""
+        # Generate mock OHLCV data
+        import random
+        base_price = 50000.0
+        data = []
+        for i in range(limit):
+            timestamp = int((datetime.now().timestamp() - (limit - i) * 3600) * 1000)
+            open_price = base_price + random.uniform(-1000, 1000)
+            high_price = open_price + random.uniform(0, 500)
+            low_price = open_price - random.uniform(0, 500)
+            close_price = open_price + random.uniform(-300, 300)
+            volume = random.uniform(100, 1000)
+            data.append([timestamp, open_price, high_price, low_price, close_price, volume])
+        return data
+    
+    async def fetch_balance(self):
+        """Mock async method for balance queries"""
+        return {
+            'total': {'BTC': 0.1, 'ETH': 2.5, 'USDT': 1000.0},
+            'free': {'BTC': 0.1, 'ETH': 2.5, 'USDT': 1000.0},
+            'used': {'BTC': 0.0, 'ETH': 0.0, 'USDT': 0.0}
+        }
+    
+    async def test_connection(self):
+        """Mock async method for connection testing"""
+        return True
+    
+    def get_exchange_name(self):
+        """Mock method to get exchange name"""
+        return "mock_exchange"
+    
+    def is_sandbox(self):
+        """Mock method to check if sandbox mode"""
+        return True
 
 bot.exchange_client = ExchangeClientMock(bot.order_history)
 
