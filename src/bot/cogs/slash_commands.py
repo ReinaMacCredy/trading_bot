@@ -31,6 +31,11 @@ class SlashCommands(commands.Cog):
         exchange: Optional[Literal["binance", "coinbase", "kraken", "bybit"]] = "binance"
     ):
         """Get current price for a cryptocurrency using slash command"""
+        # Safety check to prevent double acknowledgment
+        if interaction.response.is_done():
+            logger.warning("Interaction already acknowledged for price command")
+            return
+            
         await interaction.response.defer()
         
         try:
@@ -41,59 +46,60 @@ class SlashCommands(commands.Cog):
             
             # Get price from trading bot
             trading_bot = getattr(self.bot, 'trading_bot', None)
-            if trading_bot:
-                # Use the trading bot's get_price method
-                price = trading_bot.get_price(symbol.replace('/', ''))
-                if price:
-                    ticker = {
-                        'last': price,
-                        'symbol': symbol,
-                        'percentage': 0.0,  # Mock data for now
-                        'change': 0.0
-                    }
-                
-                if ticker:
-                    embed = discord.Embed(
-                        title=f"💰 {symbol} Price",
-                        color=0x00ff00,
-                        timestamp=datetime.now()
-                    )
-                    
-                    embed.add_field(
-                        name="Current Price",
-                        value=f"${ticker.get('last', 0):,.2f}",
-                        inline=True
-                    )
-                    
-                    # Add 24h change if available
-                    if 'percentage' in ticker:
-                        change_color = "🟢" if ticker['percentage'] >= 0 else "🔴"
-                        embed.add_field(
-                            name="24h Change",
-                            value=f"{change_color} {ticker['percentage']:.2f}%",
-                            inline=True
-                        )
-                    
-                    if 'high' in ticker and 'low' in ticker:
-                        embed.add_field(
-                            name="24h High/Low",
-                            value=f"${ticker['high']:,.2f} / ${ticker['low']:,.2f}",
-                            inline=True
-                        )
-                    
-                    embed.add_field(
-                        name="Exchange",
-                        value=exchange.capitalize(),
-                        inline=True
-                    )
-                    
-                    embed.set_footer(text="Trading Bot | Real-time data")
-                    
-                    await interaction.followup.send(embed=embed)
-                else:
-                    raise ValueError("Could not fetch price data")
-            else:
+            if not trading_bot:
                 raise ValueError("Trading bot not available")
+            
+            # Use the trading bot's get_price method
+            price = trading_bot.get_price(symbol.replace('/', ''))
+            if not price:
+                raise ValueError("Could not fetch price data")
+            
+            # Create ticker data
+            ticker = {
+                'last': price,
+                'symbol': symbol,
+                'percentage': 0.0,  # Mock data for now
+                'change': 0.0
+            }
+            
+            # Create embed
+            embed = discord.Embed(
+                title=f"💰 {symbol} Price",
+                color=0x00ff00,
+                timestamp=datetime.now()
+            )
+            
+            embed.add_field(
+                name="Current Price",
+                value=f"${ticker.get('last', 0):,.2f}",
+                inline=True
+            )
+            
+            # Add 24h change if available
+            if 'percentage' in ticker:
+                change_color = "🟢" if ticker['percentage'] >= 0 else "🔴"
+                embed.add_field(
+                    name="24h Change",
+                    value=f"{change_color} {ticker['percentage']:.2f}%",
+                    inline=True
+                )
+            
+            if 'high' in ticker and 'low' in ticker:
+                embed.add_field(
+                    name="24h High/Low",
+                    value=f"${ticker['high']:,.2f} / ${ticker['low']:,.2f}",
+                    inline=True
+                )
+            
+            embed.add_field(
+                name="Exchange",
+                value=exchange.capitalize(),
+                inline=True
+            )
+            
+            embed.set_footer(text="Trading Bot | Real-time data")
+            
+            await interaction.followup.send(embed=embed)
                 
         except Exception as e:
             logger.error(f"Error in price slash command: {e}")
@@ -103,7 +109,12 @@ class SlashCommands(commands.Cog):
                 description=f"Could not fetch price for {symbol}: {str(e)}",
                 color=0xff0000
             )
-            await interaction.followup.send(embed=error_embed, ephemeral=True)
+            try:
+                await interaction.followup.send(embed=error_embed, ephemeral=True)
+            except discord.errors.InteractionResponded:
+                logger.warning("Interaction already responded to, could not send error message")
+            except Exception as followup_error:
+                logger.error(f"Failed to send error followup: {followup_error}")
     
     @app_commands.command(name="signal", description="Generate a trading signal")
     @app_commands.describe(
@@ -119,6 +130,11 @@ class SlashCommands(commands.Cog):
         timeframe: Optional[Literal["1h", "4h", "1d"]] = "1h"
     ):
         """Generate a trading signal using slash command"""
+        # Safety check to prevent double acknowledgment
+        if interaction.response.is_done():
+            logger.warning("Interaction already acknowledged for signal command")
+            return
+            
         await interaction.response.defer()
         
         try:
@@ -231,11 +247,21 @@ class SlashCommands(commands.Cog):
                 description=f"Could not generate signal for {symbol}: {str(e)}",
                 color=0xff0000
             )
-            await interaction.followup.send(embed=error_embed, ephemeral=True)
+            try:
+                await interaction.followup.send(embed=error_embed, ephemeral=True)
+            except discord.errors.InteractionResponded:
+                logger.warning("Interaction already responded to, could not send error message")
+            except Exception as followup_error:
+                logger.error(f"Failed to send error followup: {followup_error}")
     
     @app_commands.command(name="stats", description="Get bot statistics and status")
     async def stats_slash(self, interaction: discord.Interaction):
         """Get bot statistics using slash command"""
+        # Safety check to prevent double acknowledgment
+        if interaction.response.is_done():
+            logger.warning("Interaction already acknowledged for stats command")
+            return
+            
         await interaction.response.defer()
         
         try:
@@ -302,11 +328,21 @@ class SlashCommands(commands.Cog):
                 description=f"Could not retrieve bot statistics: {str(e)}",
                 color=0xff0000
             )
-            await interaction.followup.send(embed=error_embed, ephemeral=True)
+            try:
+                await interaction.followup.send(embed=error_embed, ephemeral=True)
+            except discord.errors.InteractionResponded:
+                logger.warning("Interaction already responded to, could not send error message")
+            except Exception as followup_error:
+                logger.error(f"Failed to send error followup: {followup_error}")
     
     @app_commands.command(name="help", description="Get help information for the trading bot")
     async def help_slash(self, interaction: discord.Interaction):
         """Display help information using slash command"""
+        # Safety check to prevent double acknowledgment
+        if interaction.response.is_done():
+            logger.warning("Interaction already acknowledged for help command")
+            return
+            
         await interaction.response.defer()
         
         try:
@@ -376,7 +412,12 @@ class SlashCommands(commands.Cog):
                 description=f"Could not display help information: {str(e)}",
                 color=0xff0000
             )
-            await interaction.followup.send(embed=error_embed, ephemeral=True)
+            try:
+                await interaction.followup.send(embed=error_embed, ephemeral=True)
+            except discord.errors.InteractionResponded:
+                logger.warning("Interaction already responded to, could not send error message")
+            except Exception as followup_error:
+                logger.error(f"Failed to send error followup: {followup_error}")
 
 async def setup(bot):
     """Setup function to load the cog"""

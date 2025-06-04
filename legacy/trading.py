@@ -61,6 +61,10 @@ class TradingBot:
         self.daily_loss_counter = 0.0  # Track daily loss
         self.last_reset_day = datetime.now().day
         
+        # Price cache to prevent duplicate API calls
+        self.price_cache = {}
+        self.price_cache_ttl = 5  # Cache prices for 5 seconds
+        
         logger.info("Trading bot initialized")
     
     def reset_daily_loss(self):
@@ -133,17 +137,40 @@ class TradingBot:
     
     def get_price(self, symbol, exchange='binance'):
         """Get current price for a symbol"""
+        logger.info(f"get_price called for {symbol} on {exchange}")
+        
+        # Check cache first to prevent duplicate API calls
+        cache_key = f"{symbol}_{exchange}"
+        now = datetime.now()
+        
+        if cache_key in self.price_cache:
+            cached_price, cached_time = self.price_cache[cache_key]
+            if (now - cached_time).total_seconds() < self.price_cache_ttl:
+                logger.info(f"Returning cached price for {symbol}: {cached_price}")
+                return cached_price
+        
         try:
+            price = None
             if exchange.lower() == 'binance' and self.client:
                 ticker = self.client.get_symbol_ticker(symbol=symbol)
-                return ticker['price']
+                price = ticker['price']
+                logger.info(f"Price fetched for {symbol}: {price}")
             elif self.ccxt_client:
                 # Use CCXT for other exchanges or as fallback
                 ticker = self.ccxt_client.fetch_ticker(symbol)
-                return str(ticker['last'])
+                price = str(ticker['last'])
+                logger.info(f"Price fetched via CCXT for {symbol}: {price}")
             else:
                 logger.error(f"Exchange {exchange} not supported or client not initialized")
                 return None
+            
+            # Cache the price
+            if price:
+                self.price_cache[cache_key] = (price, now)
+                logger.debug(f"Cached price for {symbol}: {price}")
+            
+            return price
+            
         except BinanceAPIException as e:
             logger.error(f"Error getting price for {symbol}: {e}")
             return None

@@ -375,7 +375,7 @@ async def help_menu(ctx):
     embed.add_field(name="Trading", value="", inline=False)
     
     trading_text = (
-        "b!price: Get current price for a cryptocurrency\n"
+        "/price: Get current price for a cryptocurrency (slash command)\n"
         "b!balance: Check your account balance\n"
         "b!buy: Execute a buy order\n"
         "b!sell: Execute a sell order\n"
@@ -442,26 +442,8 @@ async def help_menu(ctx):
     
     await ctx.send(embed=embed2)
 
-@bot.command(name='price')
-async def get_price(ctx, symbol: str):
-    """Get the current price of a cryptocurrency.
-    
-    Parameters:
-    - symbol: The cryptocurrency symbol (e.g., BTC, ETH)
-    """
-    if not trading_bot:
-        await ctx.send("Trading bot is not initialized. Check logs for details.")
-        return
-    
-    symbol = symbol.upper()
-    if not symbol.endswith('USDT'):
-        symbol = f"{symbol}USDT"
-    
-    price = trading_bot.get_price(symbol)
-    if price:
-        await ctx.send(f"Current price of {symbol}: ${price}")
-    else:
-        await ctx.send(f"Failed to get price for {symbol}. Make sure the symbol is valid.")
+# Removed traditional price command to prevent conflicts with slash command
+# Use /price instead of b!price for price queries
 
 @bot.command(name='balance')
 async def get_balance(ctx):

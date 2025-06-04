@@ -1,7 +1,11 @@
 # Active Context: Professional Discord Trading Bot
 
 ## 🎯 Current Work Focus
-**CURRENT: Health Server Port Conflict Resolution & System Optimization**
+**CURRENT: Duplicate Command Response Resolution & System Optimization**
+
+Successfully resolved duplicate response issue with `/price` command that was causing double messages. Fixed command conflicts between traditional prefix commands and modern slash commands. The bot now provides clean, single responses for all user interactions.
+
+**Previous: Health Server Port Conflict Resolution & System Optimization**
 
 Successfully resolved critical health server port binding issues that were preventing bot startup. The bot is now fully operational with intelligent port selection and enhanced error handling. All systems are running smoothly with comprehensive health monitoring.
 
@@ -11,7 +15,27 @@ Successfully implemented comprehensive multi-exchange support enabling the bot t
 
 ## 🔄 Recent Changes
 
-### **🔧 Health Server Port Conflict Resolution & System Optimization (Latest)**
+### **🔧 Duplicate Command Response Resolution (Latest)**
+**Critical Command Conflict Fix**
+- ✅ **Fixed Duplicate Price Command** - Removed traditional `b!price` command to prevent conflicts with `/price` slash command
+- ✅ **Identified Root Cause** - Both traditional and slash commands were executing simultaneously for `/price BTC`
+- ✅ **Updated Help Documentation** - Changed help menu to reflect `/price` as slash command only
+- ✅ **Preserved Command Functionality** - Maintained different functionality for `signal` and `help` commands where appropriate
+- ✅ **Cleaned Response System** - Users now receive single, clean responses for price queries
+
+**Technical Analysis:**
+- **Problem**: Discord was triggering both `@bot.command(name='price')` and `@app_commands.command(name="price")` 
+- **Solution**: Removed redundant traditional command, kept modern slash command
+- **Impact**: No more duplicate "Current price of BTCUSDT: $105042.69000000" messages
+- **Command Strategy**: Slash commands for simple queries, traditional commands for complex operations
+
+**Current Command Architecture:**
+- **Price Queries**: `/price` (slash command only) - Clean, modern Discord interface
+- **Signal Generation**: `b!signal` (manual) + `/signal` (automated) - Different purposes, coexist intentionally
+- **Help System**: `b!help` (detailed) + `/help` (simplified) - Different audiences, coexist intentionally
+- **User Experience**: Single responses, no command confusion
+
+### **🔧 Health Server Port Conflict Resolution & System Optimization (Previous)**
 **Critical Infrastructure Fixes**
 - ✅ **Fixed Health Server Port Binding** - Resolved errno 48 "Address already in use" errors
 - ✅ **Implemented Intelligent Port Selection** - Health server tries ports 8080-8084 with graceful fallback
