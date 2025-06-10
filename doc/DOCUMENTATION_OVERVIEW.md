@@ -1,11 +1,12 @@
 # Documentation Structure Overview
 
-This document provides an overview of the complete bilingual documentation system created for the Professional Discord Trading Bot.
+This document provides an overview of the complete bilingual documentation system created for the Professional Discord Trading Bot and HTTPS Trading Server Platform.
 
 ## 📁 Documentation Structure
 
 ```
 doc/
+├── DOCUMENTATION_OVERVIEW.md   # This overview document
 ├── en/                          # English Documentation
 │   ├── README.md               # Main documentation index
 │   ├── setup/                  # Installation & Setup
@@ -71,6 +72,19 @@ doc/
 │       └── faq.md              # Câu hỏi thường gặp
 │
 └── DOCUMENTATION_OVERVIEW.md   # This overview document
+
+## 🌐 Additional Technical Documentation
+
+```
+docs/
+└── WEB_SERVER.md               # Complete HTTPS web server documentation
+    ├── Architecture Overview
+    ├── API Endpoints Reference
+    ├── TradingView Integration
+    ├── Redis Order Management
+    ├── Deployment Instructions
+    └── Troubleshooting Guide
+```
 ```
 
 ## 📚 Content Summary
@@ -82,6 +96,14 @@ doc/
 4. **[Troubleshooting](en/troubleshooting/common-issues.md)** - Common issues and solutions
 
 ### 🎯 Key Features Documented
+
+#### **HTTPS Trading Server & Automation** (NEW)
+- FastAPI-based web server with TradingView webhook integration
+- Redis-powered order management with intelligent matching engine
+- RESTful API for automated trading and order management
+- SSL/TLS support for secure communications
+- Background processing with real-time status tracking
+- Microservices architecture with shared trading infrastructure
 
 #### **Signal Generation & Analysis**
 - Real-time signal generation with live market data
@@ -99,17 +121,18 @@ doc/
 
 #### **Trading & Automation**
 - Live trading integration with multiple exchanges
+- Automated TradingView signal execution
 - Paper trading mode for safe testing
 - Advanced order types with automatic TP/SL
 - Backtesting capabilities with historical data
 - Performance tracking and analytics
 
 #### **User Interface & Experience**
-- Discord-native interface with rich embeds
-- Intuitive command structure with "b!" prefix
-- Comprehensive help system (Jockie Music style)
-- Error handling with user-friendly messages
-- Professional signal formatting
+- Dual interface: Discord for community, Web API for automation
+- Modern Discord slash commands with auto-completion
+- RESTful API with interactive documentation
+- Rich embeds and professional formatting
+- Comprehensive error handling and user feedback
 
 ## 🔧 Technical Documentation
 

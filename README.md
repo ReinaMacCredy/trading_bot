@@ -1,18 +1,28 @@
 # Professional Discord Trading Bot
 
-A professional-grade Discord bot for cryptocurrency trading signals, analysis, and automated trading. Features advanced configuration management, multi-exchange support, and comprehensive technical analysis capabilities.
+A comprehensive trading platform combining Discord bot functionality with HTTPS web server capabilities for automated trading. Features TradingView webhook integration, Redis-based order management, advanced technical analysis, and professional-grade architecture for both community interaction and automated trading execution.
 
-## 🎯 **Current Status: Production Ready**
+## 🎯 **Current Status: Production Ready with HTTPS Server**
 
-✅ **Fully Operational** - All systems running smoothly with comprehensive health monitoring  
-✅ **Health Server Optimized** - Intelligent port selection prevents startup conflicts  
-✅ **Slash Commands Active** - Modern Discord UI with real-time trading functionality  
-✅ **Multi-Exchange Support** - Unified access to crypto and forex markets  
-✅ **Production Deployed** - Reliable operation with advanced error recovery
+✅ **HTTPS Trading Server** - Complete FastAPI-based web server with TradingView webhook integration  
+✅ **Redis Order Management** - Professional order queuing system with intelligent matching engine  
+✅ **Dual Interface Architecture** - Discord for community signals, Web for automated trading  
+✅ **TradingView Integration** - Real-time webhook processing for automated signal execution  
+✅ **Microservices Pattern** - Independent services with shared trading infrastructure  
+✅ **Production Deployed** - Full monitoring stack with SSL support and comprehensive error handling
 
 ## 🚀 Key Features
 
--### **Modern Discord Integration**
+### **🌐 HTTPS Trading Server & Automation** (NEW MAJOR COMPONENT)
+- **FastAPI Web Server** - Modern async web framework with automatic API documentation
+- **TradingView Webhook Integration** - Real-time webhook processing for TradingView alerts
+- **Redis Order Management** - Persistent order queuing with multi-state tracking (pending, matched, executed, failed)
+- **Intelligent Order Matching** - Background processing engine that matches orders against TradingView signals
+- **RESTful API Interface** - Complete order management API with CRUD operations and real-time status tracking
+- **SSL/TLS Support** - Production-ready HTTPS server with certificate management
+- **Automated Trading Execution** - Signal-based conditional order execution with risk management
+
+### **🤖 Modern Discord Integration**
 - **Slash Commands Support** - Modern Discord UI with auto-completion and validation
 - **Dual Command System** - Both `/` slash commands and `b!` prefix commands supported
 - **Interactive Parameters** - Type-safe command parameters with suggestions
@@ -59,13 +69,16 @@ trading_bot/
 │   ├── docker-compose.yml       # Development environment  
 │   ├── docker-compose.prod.yml  # Production stack (full monitoring)
 │   ├── docker-compose.vps.yml   # VPS optimized (lightweight)
+│   ├── docker-compose.web.yml   # Web server specific deployment
 │   ├── Dockerfile               # Main container
 │   ├── Dockerfile.vps          # VPS optimized container
+│   ├── Dockerfile.web          # Web server container
 │   ├── vps-deployment.sh       # Automated VPS deployment script
 │   ├── app.json                # Heroku deployment config
 │   └── README.md               # Deployment documentation
 ├── ⚙️ config/                 # Configuration files
 │   ├── env.example             # Environment template
+│   ├── web_config.yaml         # Web server configuration
 │   └── README.md               # Configuration documentation
 ├── 📋 logs/                   # Log files & monitoring
 │   └── README.md               # Log management guide
@@ -73,6 +86,12 @@ trading_bot/
 ├── 📁 src/                    # Source code
 │   ├── config/                 # Configuration management
 │   ├── bot/                    # Discord bot core
+│   ├── web/                    # HTTPS web server (NEW)
+│   │   ├── api/                # API endpoints
+│   │   ├── services/           # Business logic services
+│   │   ├── models/             # Data models
+│   │   ├── handlers/           # Request handlers
+│   │   └── main.py             # FastAPI application
 │   ├── trading/                # Trading engine & strategies
 │   ├── tests/                  # Test suites
 │   └── utils/                  # Utilities
@@ -81,8 +100,11 @@ trading_bot/
 ├── 🗂️ legacy/                 # Legacy code (archived)
 ├── 🧪 tests/                  # Unit & integration tests
 ├── 📖 doc/                    # Comprehensive documentation
+├── 📄 docs/                   # Additional documentation
+│   └── WEB_SERVER.md           # Web server documentation
 ├── 🛠️ scripts/               # Utility scripts
-├── main.py                    # Bot entry point
+├── main.py                    # Discord bot entry point
+├── web_server.py              # Web server entry point (NEW)
 ├── requirements.txt           # Python dependencies
 └── README.md                  # This file
 ```
@@ -136,6 +158,21 @@ BINANCE_API_KEY=your_binance_api_key
 BINANCE_SECRET=your_binance_secret
 EXCHANGE_SANDBOX=true
 
+# Web Server Configuration (NEW)
+WEB_SERVER_HOST=0.0.0.0
+WEB_SERVER_PORT=8000
+SSL_CERTFILE=/path/to/cert.pem
+SSL_KEYFILE=/path/to/key.pem
+
+# Redis Configuration (NEW)
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=your_redis_password
+REDIS_DB=0
+
+# TradingView Integration (NEW)
+TRADINGVIEW_WEBHOOK_SECRET=your_webhook_secret
+
 # Trading Configuration
 MAX_RISK_PER_TRADE=0.02
 MAX_DAILY_LOSS=0.05
@@ -146,20 +183,48 @@ ENVIRONMENT=development
 LOG_LEVEL=INFO
 ```
 
-## 🚀 Running the Bot
+## 🚀 Running the Platform
 
-### **Local Development**
+### **Option 1: Discord Bot Only**
 ```bash
+# Start Discord bot
+python3 main.py
+```
+
+### **Option 2: Web Server Only**
+```bash
+# Start HTTPS web server
+python3 web_server.py --host 0.0.0.0 --port 8000
+
+# With SSL (production)
+python3 web_server.py --host 0.0.0.0 --port 8000 \
+  --ssl-cert /path/to/cert.pem \
+  --ssl-key /path/to/key.pem
+```
+
+### **Option 3: Full Platform (Both Services)**
+```bash
+# Terminal 1: Start Redis
+docker run -d -p 6379:6379 --name redis redis:7-alpine
+
+# Terminal 2: Start Web Server
+python3 web_server.py --host 0.0.0.0 --port 8000
+
+# Terminal 3: Start Discord Bot
 python3 main.py
 ```
 
 ### **Docker Development**
 ```bash
-# Quick start with Docker
+# Full stack with both services
 cd deployment/
 docker compose up -d
 
-# Or use the automated VPS deployment
+# Web server only
+cd deployment/
+docker compose -f docker-compose.web.yml up -d
+
+# Automated VPS deployment
 cd deployment/
 chmod +x vps-deployment.sh
 ./vps-deployment.sh
@@ -167,30 +232,29 @@ chmod +x vps-deployment.sh
 
 ### **Production Deployment**
 ```bash
-# Deploy to production with Docker (full monitoring stack)
+# Full production stack (Discord + Web + Monitoring)
 cd deployment/
 docker compose -f docker-compose.prod.yml up -d
 
-# Deploy to VPS (lightweight)
+# VPS optimized (lightweight)
 cd deployment/
 docker compose -f docker-compose.vps.yml up -d
 
-# Heroku one-click deployment (see app.json)
+# Heroku one-click deployment
 # Click the Deploy to Heroku button
 ```
 
-The bot will:
-- ✅ Load configuration from YAML and environment variables
-- ✅ Connect to Discord
-- ✅ Initialize trading components
-- ✅ Start health server with intelligent port selection
-- ✅ Sync slash commands automatically
-- ✅ Begin listening for commands
+**Service Status:**
+- **Discord Bot**: Connects to Discord, syncs slash commands, starts health server
+- **Web Server**: FastAPI server on port 8000 with API documentation at `/docs`
+- **Redis**: Order queue management and signal storage
+- **Health Monitoring**: Multiple endpoints for system status
 
-**Health Monitoring:**
-- Health server runs on http://localhost:8080/health (or next available port)
-- Automatic port fallback to 8081, 8082, 8083, 8084 if needed
-- Real-time status monitoring with uptime tracking
+**Access Points:**
+- Discord Bot: Available in your Discord server
+- Web API: http://localhost:8000/docs (API documentation)
+- Health Check: http://localhost:8080/health (Discord bot health)
+- Web Health: http://localhost:8000/status/health (Web server health)
 
 ## 🌐 Hosting & Deployment
 
@@ -259,11 +323,24 @@ curl http://localhost:8080/health  # Check bot health
 
 For detailed hosting instructions, see our **[Comprehensive Hosting Guide](doc/en/setup/hosting.md)**.
 
-## 📋 Available Commands
+## 📋 Available Interfaces
 
-All bot interactions are handled through modern **slash commands** (`/`).
+The platform provides multiple interfaces for different use cases:
 
-### **⚡ Slash Commands (Recommended)**
+### **🌐 Web API Endpoints** (NEW - Automated Trading)
+RESTful API for automated trading and TradingView integration:
+```
+POST /webhooks/tradingview          # Receive TradingView alerts
+POST /orders/create                 # Create new trading order
+GET  /orders/status/{order_id}      # Get order status
+PUT  /orders/cancel/{order_id}      # Cancel pending order
+GET  /orders/user/{user_id}         # Get user order history
+GET  /orders/queue/stats            # View queue statistics
+GET  /status/health                 # Web server health check
+GET  /docs                          # Interactive API documentation
+```
+
+### **⚡ Discord Slash Commands** (Community Interface)
 Modern Discord interface with auto-completion and parameter validation:
 ```
 /price <symbol> [exchange]           # Get real-time cryptocurrency prices
@@ -439,6 +516,10 @@ Ubuntu LTS   Ubuntu 22.04 LTS
 
 ## 🚧 Development Status
 
+- ✅ **HTTPS Trading Server**: Complete FastAPI-based web server with TradingView webhooks
+- ✅ **Redis Order Management**: Professional order queuing with intelligent matching engine
+- ✅ **Automated Trading**: TradingView signal processing with conditional order execution
+- ✅ **Microservices Architecture**: Dual-interface platform with shared trading infrastructure
 - ✅ **Core Bot**: Fully functional Discord integration with dual command system
 - ✅ **Slash Commands**: Modern Discord interface with auto-completion
 - ✅ **Configuration**: Professional YAML + env system
@@ -447,8 +528,9 @@ Ubuntu LTS   Ubuntu 22.04 LTS
 - ✅ **Technical Analysis**: 10+ indicators implemented
 - ✅ **Optimization**: Genetic algorithm + grid search
 - ✅ **FinRL Integration**: Deep reinforcement learning capabilities
+- 🔄 **Web Frontend Dashboard**: User interface for order management (planned)
+- 🔄 **Advanced Authentication**: User management and permissions (planned)
 - 🔄 **Machine Learning**: Enhanced implementation in progress
-- 🔄 **Web Dashboard**: Planned feature
 - 🔄 **Advanced Backtesting**: In development
 
 ## 📚 Documentation
@@ -456,9 +538,15 @@ Ubuntu LTS   Ubuntu 22.04 LTS
 Comprehensive documentation is available:
 
 ### **User Guides**
+- **[HTTPS Web Server Guide](docs/WEB_SERVER.md)**: Complete web server documentation and API reference
 - **[Slash Commands Guide](doc/en/slash-commands.md)**: Modern Discord command interface
 - **[Slash Commands (Vietnamese)](doc/vi/slash-commands.md)**: Hướng dẫn lệnh slash tiếng Việt
 - **[Hosting Guide](doc/en/setup/hosting.md)**: Complete deployment instructions
+
+### **Technical Documentation**
+- **[Web Server API](docs/WEB_SERVER.md)**: FastAPI server, TradingView webhooks, and order management
+- **[Configuration Guide](doc/en/setup/configuration.md)**: YAML and environment variable setup
+- **[Architecture Overview](memory-bank/systemPatterns.md)**: Microservices pattern and component design
 
 ### **Project Documentation**
 Maintained in the `memory-bank/` directory:
@@ -481,4 +569,8 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-**⚡ Ready to start trading?** Run `python3 main.py` and use `b!help` in Discord! 
+**⚡ Ready to start trading?** 
+
+**Discord Interface**: Run `python3 main.py` and use `/help` in Discord!  
+**Web API**: Run `python3 web_server.py` and visit `http://localhost:8000/docs`!  
+**Full Platform**: Use Docker Compose for both services: `cd deployment && docker compose up -d`! 
