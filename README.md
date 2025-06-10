@@ -51,30 +51,48 @@ A professional-grade Discord bot for cryptocurrency trading signals, analysis, a
 - **Order history tracking** with comprehensive trade analytics
 - **Command usage monitoring** for bot performance insights
 
-## 🏗️ Architecture
+## 🏗️ Project Structure
 
 ```
 trading_bot/
-├── src/
-│   ├── config/           # Configuration management
-│   │   ├── config_loader.py  # Smart config loader
-│   │   └── config.yml        # Main configuration
-│   ├── bot/              # Discord bot core
-│   ├── trading/          # Trading engine
-│   │   ├── strategies.py     # Trading strategies
-│   │   ├── indicators.py     # Technical indicators
-│   │   ├── optimization_manager.py  # Parameter optimization
-│   │   └── risk_manager.py   # Risk management
-│   └── utils/            # Utilities
-├── legacy/              # Archived legacy modules
-├── memory-bank/          # Project documentation
-├── main.py              # Bot entry point
-└── requirements.txt     # Dependencies
+├── 🚀 deployment/            # Docker & deployment configurations
+│   ├── docker-compose.yml       # Development environment  
+│   ├── docker-compose.prod.yml  # Production stack (full monitoring)
+│   ├── docker-compose.vps.yml   # VPS optimized (lightweight)
+│   ├── Dockerfile               # Main container
+│   ├── Dockerfile.vps          # VPS optimized container
+│   ├── vps-deployment.sh       # Automated VPS deployment script
+│   ├── app.json                # Heroku deployment config
+│   └── README.md               # Deployment documentation
+├── ⚙️ config/                 # Configuration files
+│   ├── env.example             # Environment template
+│   └── README.md               # Configuration documentation
+├── 📋 logs/                   # Log files & monitoring
+│   └── README.md               # Log management guide
+├── 🧠 memory-bank/            # AI assistant project documentation
+├── 📁 src/                    # Source code
+│   ├── config/                 # Configuration management
+│   ├── bot/                    # Discord bot core
+│   ├── trading/                # Trading engine & strategies
+│   ├── tests/                  # Test suites
+│   └── utils/                  # Utilities
+├── 📊 data/                   # Market data & databases
+├── 📈 results/                # Trading results & analytics
+├── 🗂️ legacy/                 # Legacy code (archived)
+├── 🧪 tests/                  # Unit & integration tests
+├── 📖 doc/                    # Comprehensive documentation
+├── 🛠️ scripts/               # Utility scripts
+├── main.py                    # Bot entry point
+├── requirements.txt           # Python dependencies
+└── README.md                  # This file
 ```
 
-Legacy modules contain earlier versions of the trading engine and helper
-functions. They are kept for reference but are no longer actively
-maintained.
+### **📁 Organized Structure Benefits:**
+- **🚀 deployment/** - All Docker & hosting configs in one place
+- **⚙️ config/** - Centralized configuration management  
+- **📋 logs/** - Structured log file organization
+- **🧠 memory-bank/** - AI assistant maintains project context
+- **📖 doc/** - Comprehensive documentation (English + Vietnamese)
 
 ## 🛠️ Setup & Installation
 
@@ -98,7 +116,7 @@ maintained.
 
 3. **Configure environment variables**
    ```bash
-   cp env.example .env
+   cp config/env.example .env
    # Edit .env with your credentials
    ```
 
@@ -138,22 +156,27 @@ python3 main.py
 ### **Docker Development**
 ```bash
 # Quick start with Docker
-docker-compose up -d
+cd deployment/
+docker compose up -d
 
-# Or use the deployment script
-./scripts/deploy.sh docker-dev
+# Or use the automated VPS deployment
+cd deployment/
+chmod +x vps-deployment.sh
+./vps-deployment.sh
 ```
 
 ### **Production Deployment**
 ```bash
-# Deploy to production with Docker
-./scripts/deploy.sh docker-prod
+# Deploy to production with Docker (full monitoring stack)
+cd deployment/
+docker compose -f docker-compose.prod.yml up -d
 
-# Deploy to Heroku
-./scripts/deploy.sh heroku
+# Deploy to VPS (lightweight)
+cd deployment/
+docker compose -f docker-compose.vps.yml up -d
 
-# Deploy to VPS (see hosting guide)
-./scripts/deploy.sh vps
+# Heroku one-click deployment (see app.json)
+# Click the Deploy to Heroku button
 ```
 
 The bot will:
@@ -178,17 +201,25 @@ The bot will:
 
 #### **Option 2: Docker Deployment**
 ```bash
-# Development
-./scripts/deploy.sh docker-dev
+# Development environment
+cd deployment/
+docker compose up -d
 
-# Production with monitoring
-./scripts/deploy.sh docker-prod
+# Production with monitoring stack
+cd deployment/
+docker compose -f docker-compose.prod.yml up -d
+
+# VPS optimized (lightweight)
+cd deployment/
+docker compose -f docker-compose.vps.yml up -d
 ```
 
-#### **Option 3: VPS Deployment**
+#### **Option 3: Automated VPS Deployment**
 ```bash
-# Automated VPS setup
-./scripts/deploy.sh vps
+# One-command VPS setup for cfp.io.vn
+cd deployment/
+chmod +x vps-deployment.sh
+./vps-deployment.sh
 ```
 
 ### **📋 Hosting Requirements**
@@ -204,17 +235,23 @@ The bot will:
 - SSL/TLS certificate
 - Monitoring stack
 
-### **🔧 Deployment Commands**
+### **🔧 Quick Deployment Commands**
 
 ```bash
-# Check deployment readiness
-./scripts/deploy.sh check
+# Navigate to deployment directory
+cd deployment/
 
-# Deploy to different platforms
-./scripts/deploy.sh docker-dev    # Local development
-./scripts/deploy.sh docker-prod   # Production with monitoring
-./scripts/deploy.sh heroku        # Heroku deployment
-./scripts/deploy.sh vps          # VPS deployment
+# Local development (PostgreSQL + Redis + Adminer)
+docker compose up -d
+
+# Production (Full monitoring: Prometheus, Grafana, Nginx)
+docker compose -f docker-compose.prod.yml up -d
+
+# VPS optimized (SQLite + Redis + Watchtower)
+docker compose -f docker-compose.vps.yml up -d
+
+# Automated VPS deployment
+chmod +x vps-deployment.sh && ./vps-deployment.sh
 
 # Health monitoring
 curl http://localhost:8080/health  # Check bot health
