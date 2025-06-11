@@ -10,6 +10,15 @@ from .strategies import (
     TradingSignal,
     BacktestResult
 )
+from .legacy_strategies import (
+    TradingStrategy,
+    MovingAverageCrossover,
+    RSIStrategy,
+    BollingerBandsStrategy as LegacyBollingerBandsStrategy,
+    MACDRSIStrategy as LegacyMACDRSIStrategy,
+    SCStrategySignal,
+    get_strategy
+)
 
 __all__ = [
     "MultiIndicatorStrategy",
@@ -20,4 +29,11 @@ __all__ = [
     "StrategyManager",
     "TradingSignal",
     "BacktestResult",
+    "TradingStrategy",
+    "MovingAverageCrossover",
+    "RSIStrategy",
+    "LegacyBollingerBandsStrategy",
+    "LegacyMACDRSIStrategy",
+    "SCStrategySignal",
+    "get_strategy"
 ] 

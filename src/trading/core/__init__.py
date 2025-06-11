@@ -1,10 +1,12 @@
-"""Core trading utilities and data structures."""
+"""Trading core modules."""
 
-from .order_history import OrderHistory, OrderRecord
+from .legacy_trading import TradingBot
 from .risk_manager import DynamicRiskManager
+from .order_history import OrderHistory, OrderRecord
 
 __all__ = [
-    "OrderHistory",
-    "OrderRecord",
+    "TradingBot",
     "DynamicRiskManager",
+    "OrderHistory",
+    "OrderRecord"
 ] 

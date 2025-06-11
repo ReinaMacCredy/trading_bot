@@ -13,7 +13,8 @@ from abc import ABC, abstractmethod
 
 # from .indicators import TechnicalIndicators, IndicatorResult # OLD RELATIVE IMPORT
 from src.trading.indicators import TechnicalIndicators, IndicatorResult # CORRECTED ABSOLUTE IMPORT
-from src.trading.clients.exchange_client import ExchangeClient # Ensure this is ExchangeClient, not just .exchange_client if it was relative before
+# Moving the import inside methods to avoid circular imports
+# from src.trading.clients.exchange_client import ExchangeClient
 from src.config.config_loader import get_config
 
 logger = logging.getLogger(__name__)
