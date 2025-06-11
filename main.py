@@ -13,6 +13,7 @@ import json
 import asyncio
 import aiohttp
 from pathlib import Path
+import pandas as pd
 
 # Import new bot core
 from src.bot.bot_core import create_bot
@@ -180,10 +181,8 @@ async def health_monitor():
     while True:
         try:
             # Check if bot is connected and responsive
-            if bot.is_ready():
-                update_health_status(True)
-            else:
-                update_health_status(False)
+            # The is_ready() method should be available now
+            update_health_status(bot.is_ready())
                 
             # Log health status every 5 minutes
             uptime = datetime.now() - startup_time
@@ -204,6 +203,8 @@ async def start_health_server():
     async def health_endpoint(request):
         """Health check endpoint"""
         uptime = datetime.now() - startup_time
+        
+        # Use the is_ready() method
         health_data = {
             "status": "healthy" if bot_healthy else "unhealthy",
             "uptime_seconds": int(uptime.total_seconds()),
@@ -368,6 +369,58 @@ async def on_ready():
         #     logger.info(f"Synced {len(synced)} slash command(s) from main.py on_ready")
         # except Exception as e:
         #     logger.error(f"Failed to sync slash commands from main.py on_ready: {e}")
+        
+        # Add missing method for dual_macd_rsi command
+        if not hasattr(bot, 'get_market_data'):
+            async def get_market_data_wrapper(symbol, interval, limit=100, exchange=None):
+                """Wrapper for get_market_data"""
+                try:
+                    logger.info(f"Fetching market data for {symbol} on {interval} timeframe")
+                    
+                    # If exchange client isn't initialized, return None
+                    if not bot.exchange_client:
+                        logger.error("Exchange client not initialized")
+                        return None
+                        
+                    # Use exchange client to fetch OHLCV data
+                    ohlcv_data = await bot.exchange_client.fetch_ohlcv(
+                        symbol=symbol,
+                        timeframe=interval,
+                        limit=limit
+                    )
+                    
+                    if not ohlcv_data or len(ohlcv_data) == 0:
+                        logger.error(f"Failed to fetch market data for {symbol}")
+                        return None
+                    
+                    # Convert to pandas DataFrame if it's not already
+                    if not isinstance(ohlcv_data, pd.DataFrame):
+                        df = pd.DataFrame(ohlcv_data, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+                        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+                        df.set_index('timestamp', inplace=True)
+                    else:
+                        df = ohlcv_data
+                        
+                    # Reset index to have timestamp as a column rather than index
+                    if df.index.name == 'timestamp':
+                        df = df.reset_index()
+                    
+                    # Ensure we have all required columns
+                    required_columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume']
+                    for col in required_columns:
+                        if col not in df.columns:
+                            logger.error(f"Missing required column {col} in market data")
+                            return None
+                    
+                    return df
+                    
+                except Exception as e:
+                    logger.error(f"Error getting market data for {symbol}: {str(e)}")
+                    return None
+            
+            # Attach the method to the bot
+            bot.get_market_data = get_market_data_wrapper
+            logger.info("Added get_market_data method to bot for compatibility")
         
         # Start health monitoring and HTTP server (local to main.py)
         asyncio.create_task(health_monitor())
@@ -1439,93 +1492,8 @@ async def advanced_buy(ctx, symbol: str, quantity: float, take_profit: float = N
     else:
         await ctx.send(f"Failed to place order for {symbol}.")
 
-@bot.command(name='dual_macd_rsi')
-async def dual_macd_rsi(ctx, symbol: str, interval: str = '1h', higher_tf: str = '4h'):
-    """Analyze a symbol using dual timeframe MACD+RSI strategy
-    
-    Parameters:
-    - symbol: The cryptocurrency symbol (e.g., BTC, ETH)
-    - interval: Time interval for analysis (default: 1h)
-    - higher_tf: Higher timeframe for confirmation (default: 4h)
-    """
-    if not bot.exchange_client:
-        await ctx.send("Trading components (exchange client) are not initialized. Check logs for details.")
-        return
-    
-    symbol = symbol.upper()
-    if not symbol.endswith('USDT'):
-        symbol = f"{symbol}USDT"
-    
-    valid_intervals = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w', '1M']
-    if interval not in valid_intervals or higher_tf not in valid_intervals:
-        await ctx.send(f"Invalid interval. Please use one of: {', '.join(valid_intervals)}")
-        return
-    
-    await ctx.send(f"Analyzing {symbol} with dual timeframe MACD+RSI strategy ({interval} + {higher_tf})...")
-    
-    try:
-        # Get data for both timeframes
-        df = bot.get_market_data(symbol, interval, limit=100)
-        higher_tf_data = bot.get_market_data(symbol, higher_tf, limit=100)
-        
-        if df is None or higher_tf_data is None:
-            await ctx.send(f"Failed to get market data for {symbol}.")
-            return
-        
-        # Get the indicator
-        factory = IndicatorFactory()
-        indicator = factory.get_indicator('dual_macd_rsi')
-        
-        # Run analysis
-        result = indicator.get_signal(df, higher_tf_data)
-        
-        if result is None:
-            await ctx.send(f"Failed to analyze {symbol} with dual timeframe strategy.")
-            return
-        
-        # Get the latest signal
-        latest = result.iloc[-1]
-        signal_value = latest['signal']
-        
-        # Prepare response
-        response = f"**Dual Timeframe MACD+RSI Analysis for {symbol}**\n"
-        response += f"• Timeframes: {interval} + {higher_tf}\n"
-        response += f"• RSI: {latest['rsi']:.2f}\n"
-        response += f"• MACD: {latest['macd']:.6f}\n"
-        response += f"• Signal Line: {latest['signal_line']:.6f}\n"
-        response += f"• Histogram: {latest['histogram']:.6f}\n"
-        
-        if signal_value == 1.0:
-            response += f"• **Signal: BUY** 🟢\n"
-            
-            # Calculate entry, take profit and stop loss
-            current_price = float(bot.get_price(symbol))
-            atr = df['high'].rolling(14).max() - df['low'].rolling(14).min()
-            last_atr = atr.iloc[-1]
-            
-            stop_loss = current_price - (last_atr * 1.5)
-            take_profit = current_price + (last_atr * 3.0)
-            
-            response += f"• Entry: {current_price:.4f}\n"
-            response += f"• Take Profit: {take_profit:.4f}\n"
-            response += f"• Stop Loss: {stop_loss:.4f}\n"
-            response += f"• Risk/Reward: 1:2\n"
-            
-        elif signal_value == -1.0:
-            response += f"• **Signal: SELL** 🔴\n"
-        else:
-            response += f"• **Signal: NEUTRAL** ⚪\n"
-            
-        await ctx.send(response)
-        
-        # Generate chart with indicators
-        chart_data = bot.generate_chart(symbol, interval, limit=100, with_indicators=True)
-        if chart_data:
-            await ctx.send(file=File(chart_data, filename=f"{symbol}_{interval}_analysis.png"))
-            
-    except Exception as e:
-        logger.error(f"Error in dual_macd_rsi command: {str(e)}")
-        await ctx.send(f"An error occurred while analyzing {symbol}: {str(e)}")
+# Legacy dual_macd_rsi command - this has been moved to analysis_commands.py cog
+# This command is now maintained there instead.
 
 @bot.command(name='exchanges')
 async def list_exchanges(ctx):

@@ -76,7 +76,7 @@ class PortfolioCommands(commands.Cog):
             logger.error(f"Error in portfolio command: {e}")
             await ctx.send(f"❌ Error fetching portfolio: {str(e)}")
     
-    @commands.command(name="position_size")
+    @commands.command(name="p_position_size")
     async def position_size(self, ctx, symbol: str, entry_price: float, stop_loss: float):
         """Calculate optimal position size based on risk management"""
         try:

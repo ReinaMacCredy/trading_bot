@@ -29,7 +29,7 @@ class TradingCommands(commands.Cog):
         self._recent_signals = []
         logger.info("Trading commands cog initialized")
     
-    @commands.command(name="chart")
+    @commands.command(name="t_chart")
     async def chart(self, ctx, symbol: str):
         """Generate price chart for a cryptocurrency"""
         try:
@@ -190,7 +190,7 @@ class TradingCommands(commands.Cog):
             logger.error(f"Error in signals command: {e}")
             await ctx.send(f"❌ Error fetching recent signals: {str(e)}")
 
-    @commands.command(name="analyze")
+    @commands.command(name="t_analyze")
     async def analyze(self, ctx, symbol: str):
         """Perform technical analysis on a cryptocurrency"""
         try:
@@ -561,7 +561,7 @@ class TradingCommands(commands.Cog):
             logger.error(f"Error in settings command: {e}")
             await ctx.send(f"❌ Error fetching settings: {str(e)}")
     
-    @commands.command(name="health")
+    @commands.command(name="t_health")
     async def health(self, ctx):
         """Check bot health and status"""
         try:

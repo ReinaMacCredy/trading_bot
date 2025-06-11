@@ -19,7 +19,7 @@ class HelpCommands(commands.Cog):
         self.bot = bot
         logger.info("Help commands cog initialized")
     
-    @commands.command(name="help")
+    @commands.command(name="h_help")
     async def help_command(self, ctx, command: Optional[str] = None):
         """Show help information for commands"""
         try:

@@ -23,7 +23,7 @@ class AdminCommands(commands.Cog):
         self.bot = bot
         logger.info("Admin commands cog initialized")
     
-    @commands.command(name="health")
+    @commands.command(name="a_health")
     async def health(self, ctx):
         """Show bot health and status information"""
         try:

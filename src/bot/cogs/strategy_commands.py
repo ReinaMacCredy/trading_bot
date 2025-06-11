@@ -19,7 +19,7 @@ class StrategyCommands(commands.Cog):
         self.bot = bot
         logger.info("Strategy commands cog initialized")
     
-    @commands.command(name="strategies")
+    @commands.command(name="s_strategies")
     async def list_strategies(self, ctx):
         """List available trading strategies"""
         try:
@@ -54,7 +54,7 @@ class StrategyCommands(commands.Cog):
             logger.error(f"Error in list_strategies command: {e}")
             await ctx.send(f"❌ Error listing strategies: {str(e)}")
     
-    @commands.command(name="analyze")
+    @commands.command(name="s_analyze")
     async def analyze(self, ctx, strategy: str, symbol: str, interval: str = '1d'):
         """Analyze a symbol using a specific strategy"""
         try:

@@ -11,11 +11,12 @@ from typing import Dict, List, Optional
 import os
 from datetime import datetime, timedelta
 import traceback
+import pandas as pd
 
 from src.config.config_loader import get_config
 from src.trading.clients.exchange_client import ExchangeClient
 from src.trading.strategies import StrategyManager
-from src.trading.indicators import TechnicalIndicators
+from src.trading.indicators import TechnicalIndicators, IndicatorFactory
 from src.trading.core.risk_manager import DynamicRiskManager
 from src.trading.core.order_history import OrderHistory
 
@@ -51,7 +52,7 @@ class TradingBotCore(commands.Bot):
         self.risk_manager = None
         
         # Bot state
-        self.is_ready = False
+        self._is_ready = False
         self.start_time = None
         self.last_heartbeat = None
         self.active_signals = {}
@@ -148,30 +149,67 @@ class TradingBotCore(commands.Bot):
             raise
             
     async def _load_cogs(self):
-        """Load all bot cogs"""
-        cogs_to_load = [
-            'src.bot.cogs.slash_commands',  # Add slash commands cog
-            'src.bot.cogs.trading_commands',
-            'src.bot.cogs.strategy_commands', 
-            'src.bot.cogs.analysis_commands',
-            'src.bot.cogs.portfolio_commands',
-            'src.bot.cogs.admin_commands',
-            'src.bot.cogs.help_commands'
-        ]
-        
-        for cog in cogs_to_load:
-            try:
-                await self.load_extension(cog)
-                logger.info(f"Loaded cog: {cog}")
-            except Exception as e:
-                logger.error(f"Failed to load cog {cog}: {e}")
-                
-        # Sync slash commands
+        """Load available cogs"""
         try:
-            synced = await self.tree.sync()
-            logger.info(f"Synced {len(synced)} slash commands")
+            cog_modules = [
+                "src.bot.cogs.slash_commands",
+                "src.bot.cogs.trading_commands",
+                "src.bot.cogs.strategy_commands",
+                "src.bot.cogs.analysis_commands",
+                "src.bot.cogs.portfolio_commands",
+                "src.bot.cogs.admin_commands",
+                "src.bot.cogs.help_commands"
+            ]
+            
+            # Import the command resolver once at the start
+            try:
+                from src.bot.commands.command_resolver import CONFLICTING_COMMANDS
+                logger.info(f"Command conflict resolution enabled. {len(CONFLICTING_COMMANDS)} potential conflicts identified.")
+            except ImportError:
+                logger.warning("Command resolver module not available.")
+            
+            # Track which cogs were successfully loaded
+            loaded_cogs = []
+            
+            for cog in cog_modules:
+                try:
+                    await self.load_extension(cog)
+                    logger.info(f"Loaded cog: {cog}")
+                    loaded_cogs.append(cog)
+                except discord.errors.ClientException as e:
+                    logger.error(f"Failed to load cog {cog}: {e}")
+                    if "already an existing command" in str(e):
+                        # Command conflict - log this but continue with other cogs
+                        conflicting_command = str(e).split('The command ')[1].split(' is already')[0]
+                        logger.warning(f"Command conflict detected: '{conflicting_command}' in {cog}")
+                    else:
+                        # Other client exception - raise it
+                        raise
+                except Exception as e:
+                    logger.error(f"Error loading cog {cog}: {e}")
+                    raise
+                    
+            if loaded_cogs:
+                logger.info(f"Successfully loaded {len(loaded_cogs)} cog(s): {', '.join(loaded_cogs)}")
+                
+                # Attempt to resolve any command conflicts
+                try:
+                    from src.bot.commands.command_resolver import resolve_command_conflicts
+                    resolve_command_conflicts(self)
+                except ImportError:
+                    pass
+            else:
+                logger.warning("No cogs were loaded successfully.")
+                    
+            # Sync slash commands
+            try:
+                synced = await self.tree.sync()
+                logger.info(f"Synced {len(synced)} slash commands")
+            except Exception as e:
+                logger.error(f"Failed to sync slash commands: {e}")
         except Exception as e:
-            logger.error(f"Failed to sync slash commands: {e}")
+            logger.error(f"Error loading cogs: {e}")
+            logger.error(traceback.format_exc())
                 
     def _start_background_tasks(self):
         """Start background monitoring tasks"""
@@ -185,7 +223,7 @@ class TradingBotCore(commands.Bot):
         
     async def on_ready(self):
         """Called when bot is ready"""
-        self.is_ready = True
+        self._is_ready = True
         self.start_time = datetime.now()
         self.uptime_start = datetime.now()
         self.last_heartbeat = datetime.now()
@@ -579,6 +617,95 @@ class TradingBotCore(commands.Bot):
         except Exception as e:
             logger.error(f"Error generating strategy chart: {e}")
             return None
+
+    async def get_market_data(self, symbol, interval, limit=100, exchange=None):
+        logger.info(f"CORE_GM_DATA_ENTER: Attempting for {symbol}/{interval}. Bot instance ID: {id(self)}")
+        """
+        Get historical market data for a symbol
+        
+        Args:
+            symbol: Trading pair (e.g., BTCUSDT)
+            interval: Time interval (e.g., 1h, 4h, 1d)
+            limit: Number of candles to fetch
+            exchange: Optional exchange name (defaults to configured exchange)
+            
+        Returns:
+            DataFrame with OHLCV data or None if error
+        """
+        try:
+            logger.info(f"Fetching market data for {symbol} on {interval} timeframe")
+            
+            # If exchange client isn't initialized, return None
+            if not self.exchange_client:
+                logger.error("Exchange client not initialized")
+                return None
+                
+            # Use exchange client to fetch OHLCV data
+            df = await self.exchange_client.fetch_ohlcv(
+                symbol=symbol,
+                timeframe=interval,
+                limit=limit
+            )
+            
+            if df is None or len(df) == 0:
+                logger.error(f"Failed to fetch market data for {symbol}")
+                return None
+                
+            # Reset index to have timestamp as a column rather than index
+            # This is to match the format expected by the dual_macd_rsi command
+            if df.index.name == 'timestamp':
+                df = df.reset_index()
+            
+            # Ensure we have all required columns
+            required_columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume']
+            for col in required_columns:
+                if col not in df.columns:
+                    logger.error(f"Missing required column {col} in market data")
+                    return None
+            
+            return df
+            
+        except Exception as e:
+            logger.error(f"CORE_GM_DATA_ERROR: Error for {symbol}/{interval}: {str(e)}. Bot instance ID: {id(self)}")
+            logger.error(traceback.format_exc())
+            return None
+        finally:
+            logger.info(f"CORE_GM_DATA_EXIT: Exiting for {symbol}/{interval}. Bot instance ID: {id(self)}")
+            
+    async def get_price(self, symbol, exchange=None):
+        """
+        Get current price for a symbol
+        
+        Args:
+            symbol: Trading pair (e.g., BTCUSDT)
+            exchange: Optional exchange name
+            
+        Returns:
+            Current price as float or None if error
+        """
+        try:
+            # If exchange client isn't initialized, return None
+            if not self.exchange_client:
+                logger.error("Exchange client not initialized")
+                return None
+                
+            # Use exchange client to fetch ticker
+            ticker = await self.exchange_client.fetch_ticker(symbol)
+            
+            if ticker and 'last' in ticker:
+                return float(ticker['last'])
+            else:
+                logger.error(f"Failed to fetch price for {symbol}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error getting price for {symbol}: {str(e)}")
+            return None
+
+    # Add compatibility method for standard discord.py is_ready() method
+    def is_ready(self) -> bool:
+        """Return the is_ready property for compatibility with standard discord.py Bot"""
+        return self._is_ready
 
 # Factory function to create and configure bot
 def create_bot() -> TradingBotCore:
