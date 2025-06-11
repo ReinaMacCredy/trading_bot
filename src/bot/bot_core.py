@@ -13,11 +13,11 @@ from datetime import datetime, timedelta
 import traceback
 
 from src.config.config_loader import get_config
-from src.trading.exchange_client import ExchangeClient
+from src.trading.clients.exchange_client import ExchangeClient
 from src.trading.strategies import StrategyManager
 from src.trading.indicators import TechnicalIndicators
-from src.trading.risk_manager import RiskManager
-from src.trading.order_history import OrderHistory
+from src.trading.core.risk_manager import DynamicRiskManager
+from src.trading.core.order_history import OrderHistory
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +69,7 @@ class TradingBotCore(commands.Bot):
     def _setup_logging(self):
         """Setup logging configuration"""
         logging.basicConfig(
-            level=getattr(logging, self.config.monitoring.log_level),
+            level=getattr(logging, self.config.logging_level.upper()),
             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
             handlers=[
                 logging.FileHandler('discord_bot.log'),
@@ -87,6 +87,11 @@ class TradingBotCore(commands.Bot):
             
             # Load cogs
             await self._load_cogs()
+            
+            # Initialize command handler
+            from src.bot.commands.command_handler import setup_command_handler
+            self.command_handler = setup_command_handler(self)
+            logger.info("Command handler initialized")
             
             # Start background tasks
             self._start_background_tasks()
@@ -125,15 +130,21 @@ class TradingBotCore(commands.Bot):
             self.indicators = TechnicalIndicators(config=self.config)
             
             # Initialize risk manager
-            self.risk_manager = RiskManager(
-                config=self.config,
-                exchange_client=self.exchange_client
+            risk_trading_settings = self.config.trading
+            risk_indicator_settings = self.config.indicators
+            
+            self.risk_manager = DynamicRiskManager(
+                max_risk_per_trade=risk_trading_settings.max_risk_per_trade,
+                max_daily_risk=risk_trading_settings.max_daily_loss,
+                max_open_trades=risk_trading_settings.max_positions,
+                atr_period=risk_indicator_settings.atr_period
             )
             
             logger.info("Trading components initialized successfully")
             
         except Exception as e:
             logger.error(f"Error initializing trading components: {e}")
+            logger.error(traceback.format_exc())
             raise
             
     async def _load_cogs(self):
@@ -471,6 +482,103 @@ class TradingBotCore(commands.Bot):
         # Close bot
         await self.close()
         logger.info("Bot shutdown complete")
+
+    async def generate_chart(self, symbol: str, interval: str = '1d', limit: int = 30):
+        """Generate a price chart for a symbol"""
+        try:
+            logger.info(f"Generating chart for {symbol} on {interval} timeframe (limit: {limit})")
+            
+            # This is a placeholder implementation that returns None
+            # In a real implementation, this would fetch data and generate a chart
+            
+            # Demo data - this would be replaced with actual chart generation
+            import matplotlib.pyplot as plt
+            import numpy as np
+            import io
+            
+            # Create a simple chart (this is a placeholder)
+            plt.figure(figsize=(10, 6))
+            
+            # Generate some random price data as placeholder
+            x = np.arange(limit)
+            base_price = 100 + (hash(symbol) % 900)  # Random starting price based on symbol name
+            volatility = 0.01 + (hash(interval) % 10) * 0.01  # Random volatility based on interval
+            
+            # Generate a somewhat realistic price movement
+            y = [base_price]
+            for i in range(1, limit):
+                price_change = y[-1] * np.random.normal(0, volatility)
+                y.append(y[-1] + price_change)
+            
+            plt.plot(x, y, linewidth=2)
+            plt.title(f"{symbol} Price Chart ({interval})")
+            plt.xlabel("Time")
+            plt.ylabel("Price (USD)")
+            plt.grid(True)
+            
+            # Save chart to a buffer
+            buf = io.BytesIO()
+            plt.savefig(buf, format='png')
+            buf.seek(0)
+            plt.close()
+            
+            return buf
+            
+        except Exception as e:
+            logger.error(f"Error generating chart: {e}")
+            return None
+            
+    async def generate_strategy_chart(self, strategy: str, symbol: str, interval: str = '1d', limit: int = 30):
+        """Generate a strategy chart with indicators"""
+        try:
+            logger.info(f"Generating strategy chart for {symbol} with {strategy} strategy on {interval} timeframe")
+            
+            # This is similar to generate_chart but would add strategy indicators
+            # For now, we'll use the same implementation with a different title
+            
+            import matplotlib.pyplot as plt
+            import numpy as np
+            import io
+            
+            plt.figure(figsize=(10, 6))
+            
+            # Generate some random price data as placeholder
+            x = np.arange(limit)
+            base_price = 100 + (hash(symbol) % 900)
+            volatility = 0.01 + (hash(interval) % 10) * 0.01
+            
+            # Generate a somewhat realistic price movement
+            y = [base_price]
+            for i in range(1, limit):
+                price_change = y[-1] * np.random.normal(0, volatility)
+                y.append(y[-1] + price_change)
+            
+            # Plot main price chart
+            plt.plot(x, y, linewidth=2, label="Price")
+            
+            # Add a simple moving average as demo indicator
+            window = 5
+            if limit > window:
+                sma = np.convolve(y, np.ones(window)/window, mode='valid')
+                plt.plot(range(window-1, limit), sma, linewidth=1.5, label=f"SMA-{window}")
+            
+            plt.title(f"{symbol} with {strategy} Strategy ({interval})")
+            plt.xlabel("Time")
+            plt.ylabel("Price (USD)")
+            plt.grid(True)
+            plt.legend()
+            
+            # Save chart to a buffer
+            buf = io.BytesIO()
+            plt.savefig(buf, format='png')
+            buf.seek(0)
+            plt.close()
+            
+            return buf
+            
+        except Exception as e:
+            logger.error(f"Error generating strategy chart: {e}")
+            return None
 
 # Factory function to create and configure bot
 def create_bot() -> TradingBotCore:

@@ -117,7 +117,8 @@ python web_server.py --host 0.0.0.0 --port 8000 \
 ### 5. Verification
 ```bash
 # Test Discord bot
-# Use command: /help in your Discord server
+# Use command: b!help in your Discord server
+# Note: All bot commands use the 'b!' prefix
 
 # Test web server health
 curl http://localhost:8000/status/health
@@ -128,14 +129,14 @@ curl http://localhost:8000/status/health
 
 ## 📊 Core Commands
 
-### **Discord Slash Commands**
-- `/price <symbol> [exchange]` - Real-time cryptocurrency prices with market data
-- `/signal <symbol> [strategy] [timeframe]` - Professional trading signal generation  
-- `/stats` - Comprehensive bot statistics and system status
-- `/help` - Modern help system with feature overview
-- `/orders` - Display recent order history with rich formatting
-- `/actcmd` - Show commands that have been used
-- `/cmdsta` - Show all commands grouped by active/inactive status
+### **Discord Commands**
+- `b!price <symbol> [exchange]` - Real-time cryptocurrency prices with market data
+- `b!signal <symbol> [strategy] [timeframe]` - Professional trading signal generation  
+- `b!health` - Comprehensive bot statistics and system status
+- `b!help` - Modern help system with feature overview
+- `b!orders` - Display recent order history with rich formatting
+- `b!actcmd` - Show commands that have been used
+- `b!cmdsta` - Show all commands grouped by active/inactive status
 
 ### **Web API Endpoints**
 - `POST /orders/create` - Create new trading order

@@ -11,8 +11,9 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from abc import ABC, abstractmethod
 
-from .indicators import TechnicalIndicators, IndicatorResult
-from .exchange_client import ExchangeClient
+# from .indicators import TechnicalIndicators, IndicatorResult # OLD RELATIVE IMPORT
+from src.trading.indicators import TechnicalIndicators, IndicatorResult # CORRECTED ABSOLUTE IMPORT
+from src.trading.clients.exchange_client import ExchangeClient # Ensure this is ExchangeClient, not just .exchange_client if it was relative before
 from src.config.config_loader import get_config
 
 logger = logging.getLogger(__name__)

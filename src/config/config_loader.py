@@ -40,7 +40,7 @@ class IndicatorConfig:
 @dataclass
 class DiscordConfig:
     """Discord bot configuration"""
-    command_prefix: str = "/"
+    command_prefix: str = "b!"
     channels: Dict[str, str] = field(default_factory=lambda: {
         "signals": "signals",
         "alerts": "alerts",
@@ -85,6 +85,7 @@ class MonitoringConfig:
         "email": False,
         "sms": False
     })
+    enable_alerts: bool = True
 
 @dataclass
 class BotConfig:
