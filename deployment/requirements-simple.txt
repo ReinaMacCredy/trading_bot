@@ -1,0 +1,19 @@
+# Core Discord Bot Dependencies
+discord.py>=2.3.0
+python-dotenv>=1.0.0
+PyYAML>=6.0
+
+# Trading Dependencies
+ccxt>=4.0.0
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Web Server (optional)
+fastapi>=0.100.0
+uvicorn>=0.23.0
+redis>=4.5.0
+
+# Utils
+aiohttp>=3.8.0
+requests>=2.31.0
+structlog>=23.0.0 

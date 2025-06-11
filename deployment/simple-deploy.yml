@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  bot:
+    build:
+      context: ..
+      dockerfile: deployment/simple.Dockerfile
+    container_name: trading_bot_simple
+    environment:
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - BINANCE_API_KEY=${BINANCE_API_KEY:-demo}
+      - BINANCE_SECRET=${BINANCE_SECRET:-demo}
+      - EXCHANGE_SANDBOX=true
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - bot-net
+
+  # Redis đơn giản (optional - chỉ cần khi dùng web server)
+  redis:
+    image: redis:7-alpine
+    container_name: bot_redis
+    restart: unless-stopped
+    networks:
+      - bot-net
+    profiles:
+      - web
+
+  # Web server (optional - chỉ start khi cần)
+  web:
+    build:
+      context: ..
+      dockerfile: deployment/simple.Dockerfile
+    container_name: trading_web
+    command: python web_server.py
+    environment:
+      - REDIS_HOST=redis
+      - WEB_SERVER_PORT=8000
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+    restart: unless-stopped
+    networks:
+      - bot-net
+    profiles:
+      - web
+
+networks:
+  bot-net:
+    driver: bridge 

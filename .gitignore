@@ -158,11 +158,51 @@ cython_debug/
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
-#  and can be added to the global gitignore or merged into this file.  For a more nuclear
+#  and can be added to the global gitignore or merged into this project gitignore.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
-#.idea/
+.idea/
 
-# memory-bank
+# System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Legacy/Temporary Files
+legacy/
+temp/
+tmp/
+*.tmp
+*.bak
+*.swp
+*.swo
+*~
+
+# Log Files
+logs/*.log
+*.log.*
+
+# Database Files
+*.db
+*.sqlite
+*.sqlite3
+
+# Trading Bot Specific
+data/backtest_results/
+data/temp/
+results/temp/
+results/backtest/
+
+# Memory Bank (already present but clarified)
 memory-bank/
 cursor-memory-bank/
+
+# Configuration backups
+config/*.bak
+config/*.backup
+*.env.bak
+*.env.backup
 
