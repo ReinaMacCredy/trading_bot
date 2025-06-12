@@ -6,9 +6,6 @@ from dotenv import load_dotenv
 import os
 import traceback
 from discord import File
-from legacy.trading import TradingBot
-from legacy.bot import create_signal_embed  # Only import the create_signal_embed function, not the TradingSignalBot
-from legacy.indicators import IndicatorFactory
 from datetime import datetime
 import random
 import ccxt
@@ -16,18 +13,22 @@ import json
 import asyncio
 import aiohttp
 from pathlib import Path
+import pandas as pd
+
+# Import new bot core
+from src.bot.bot_core import create_bot
 
 # Import optimization components
-from src.trading.optimization_manager import OptimizationManager
-from src.trading.parameter_optimizer import ParameterOptimizer
-from src.trading.multi_indicator_strategy import MultiIndicatorStrategy
-from src.trading.genetic_optimizer import GeneticOptimizer
-from src.trading.ml_optimizer import MLOptimizer
-from src.trading.risk_manager import DynamicRiskManager
+from src.trading.optimization import OptimizationManager
+from src.trading.optimization import ParameterOptimizer
+from src.trading.strategies import MultiIndicatorStrategy
+from src.trading.optimization import GeneticOptimizer
+from src.trading.optimization import MLOptimizer
+from src.trading.core import DynamicRiskManager
 
 # Import command functions
-from src.bot.commands.history_commands import status_commands, active_commands, inactive_commands, order_history
-from src.trading.order_history import OrderHistory
+from src.bot.commands.history_commands import status_commands, active_commands, inactive_commands
+from src.trading.core import OrderHistory
 
 # Import RL commands
 from src.bot.commands.rl_commands import RLCommands
@@ -60,6 +61,7 @@ channel_id = os.getenv('DISCORD_CHANNEL_ID')
 # Health check and monitoring setup
 health_check_file = Path("/tmp/bot_healthy")
 startup_time = datetime.now()
+health_server_port = 8080  # Default port, will be updated if a different port is used
 
 # If token is not found, prompt for it
 if not token:
@@ -69,82 +71,79 @@ if not token:
         raise ValueError("Discord token is required to run the bot.")
 
 # Setup bot
-intents = discord.Intents.default()
-intents.members = True
-intents.message_content = True
+bot = create_bot()
 
-bot = commands.Bot(command_prefix=discord_config.command_prefix, intents=intents, help_command=None)
-trading_bot = None
+# trading_bot = None
 optimization_manager = None
 
 # Add command usage tracking for the bot
-bot.command_usage = {}
+# bot.command_usage = {}
 
 # Add order history functionality
-bot.order_history = OrderHistory()
+# bot.order_history = OrderHistory()
 
 # Create a simple exchange client mock that provides order history
-class ExchangeClientMock:
-    def __init__(self, order_history):
-        self.order_history_obj = order_history
-    
-    def get_order_history(self):
-        return self.order_history_obj.get_all_orders()
-    
-    async def fetch_ticker(self, symbol):
-        """Mock async method for slash commands that need ticker data"""
-        return {
-            'symbol': symbol,
-            'last': 50000.0,
-            'percentage': 2.5,
-            'change': 1200.0,
-            'bid': 49950.0,
-            'ask': 50050.0,
-            'baseVolume': 1000.0,
-            'timestamp': int(datetime.now().timestamp() * 1000)
-        }
-    
-    def get_price(self, symbol):
-        """Mock method for price queries"""
-        return 50000.0
-    
-    async def fetch_ohlcv(self, symbol, timeframe='1h', limit=100, since=None):
-        """Mock async method for OHLCV data"""
-        # Generate mock OHLCV data
-        import random
-        base_price = 50000.0
-        data = []
-        for i in range(limit):
-            timestamp = int((datetime.now().timestamp() - (limit - i) * 3600) * 1000)
-            open_price = base_price + random.uniform(-1000, 1000)
-            high_price = open_price + random.uniform(0, 500)
-            low_price = open_price - random.uniform(0, 500)
-            close_price = open_price + random.uniform(-300, 300)
-            volume = random.uniform(100, 1000)
-            data.append([timestamp, open_price, high_price, low_price, close_price, volume])
-        return data
-    
-    async def fetch_balance(self):
-        """Mock async method for balance queries"""
-        return {
-            'total': {'BTC': 0.1, 'ETH': 2.5, 'USDT': 1000.0},
-            'free': {'BTC': 0.1, 'ETH': 2.5, 'USDT': 1000.0},
-            'used': {'BTC': 0.0, 'ETH': 0.0, 'USDT': 0.0}
-        }
-    
-    async def test_connection(self):
-        """Mock async method for connection testing"""
-        return True
-    
-    def get_exchange_name(self):
-        """Mock method to get exchange name"""
-        return "mock_exchange"
-    
-    def is_sandbox(self):
-        """Mock method to check if sandbox mode"""
-        return True
+# class ExchangeClientMock:
+#     def __init__(self, order_history):
+#         self.order_history_obj = order_history
+#
+#     def get_order_history(self):
+#         return self.order_history_obj.get_all_orders()
+#
+#     async def fetch_ticker(self, symbol):
+#         """Mock async method for slash commands that need ticker data"""
+#         return {
+#             'symbol': symbol,
+#             'last': 50000.0,
+#             'percentage': 2.5,
+#             'change': 1200.0,
+#             'bid': 49950.0,
+#             'ask': 50050.0,
+#             'baseVolume': 1000.0,
+#             'timestamp': int(datetime.now().timestamp() * 1000)
+#         }
+#
+#     def get_price(self, symbol):
+#         """Mock method for price queries"""
+#         return 50000.0
+#
+#     async def fetch_ohlcv(self, symbol, timeframe='1h', limit=100, since=None):
+#         """Mock async method for OHLCV data"""
+#         # Generate mock OHLCV data
+#         import random
+#         base_price = 50000.0
+#         data = []
+#         for i in range(limit):
+#             timestamp = int((datetime.now().timestamp() - (limit - i) * 3600) * 1000)
+#             open_price = base_price + random.uniform(-1000, 1000)
+#             high_price = open_price + random.uniform(0, 500)
+#             low_price = open_price - random.uniform(0, 500)
+#             close_price = open_price + random.uniform(-300, 300)
+#             volume = random.uniform(100, 1000)
+#             data.append([timestamp, open_price, high_price, low_price, close_price, volume])
+#         return data
+#
+#     async def fetch_balance(self):
+#         """Mock async method for balance queries"""
+#         return {
+#             'total': {'BTC': 0.1, 'ETH': 2.5, 'USDT': 1000.0},
+#             'free': {'BTC': 0.1, 'ETH': 2.5, 'USDT': 1000.0},
+#             'used': {'BTC': 0.0, 'ETH': 0.0, 'USDT': 0.0}
+#         }
+#
+#     async def test_connection(self):
+#         """Mock async method for connection testing"""
+#         return True
+#
+#     def get_exchange_name(self):
+#         """Mock method to get exchange name"""
+#         return "mock_exchange"
+#
+#     def is_sandbox(self):
+#         """Mock method to check if sandbox mode"""
+#         return True
 
-bot.exchange_client = ExchangeClientMock(bot.order_history)
+# bot.exchange_client = ExchangeClientMock(bot.order_history)
 
 def get_command_status():
     """Return lists of active and inactive commands"""
@@ -182,15 +181,13 @@ async def health_monitor():
     while True:
         try:
             # Check if bot is connected and responsive
-            if bot.is_ready() and trading_bot is not None:
-                update_health_status(True)
-            else:
-                update_health_status(False)
+            # The is_ready() method should be available now
+            update_health_status(bot.is_ready())
                 
             # Log health status every 5 minutes
             uptime = datetime.now() - startup_time
             if uptime.total_seconds() % 300 < 10:  # Every 5 minutes
-                logger.info(f"Bot health check - Uptime: {uptime}, Connected: {bot.is_ready()}, Trading bot: {trading_bot is not None}")
+                logger.info(f"Bot health check - Uptime: {uptime}, Connected: {bot.is_ready()}, Exchange Client: {bot.exchange_client is not None}")
                 
             await asyncio.sleep(30)  # Check every 30 seconds
         except Exception as e:
@@ -201,15 +198,18 @@ async def health_monitor():
 async def start_health_server():
     """Start a simple HTTP health server for monitoring"""
     from aiohttp import web
+    global health_server_port
     
     async def health_endpoint(request):
         """Health check endpoint"""
         uptime = datetime.now() - startup_time
+        
+        # Use the is_ready() method
         health_data = {
             "status": "healthy" if bot_healthy else "unhealthy",
             "uptime_seconds": int(uptime.total_seconds()),
             "bot_ready": bot.is_ready(),
-            "trading_bot_initialized": trading_bot is not None,
+            "trading_components_ready": bot.exchange_client is not None,
             "last_heartbeat": last_heartbeat.isoformat(),
             "environment": os.getenv("ENVIRONMENT", "development")
         }
@@ -223,7 +223,7 @@ async def start_health_server():
         metrics = {
             "bot_uptime_seconds": int(uptime.total_seconds()),
             "bot_connected": 1 if bot.is_ready() else 0,
-            "trading_bot_ready": 1 if trading_bot is not None else 0,
+            "trading_bot_ready": 1 if bot.exchange_client is not None else 0,
             "guild_count": len(bot.guilds) if bot.is_ready() else 0,
             "user_count": sum(guild.member_count for guild in bot.guilds) if bot.is_ready() else 0
         }
@@ -250,6 +250,7 @@ async def start_health_server():
             await runner.setup()
             site = web.TCPSite(runner, '0.0.0.0', port)
             await site.start()
+            health_server_port = port  # Update the global port variable
             logger.info(f"Health server started on port {port}")
             return
         except OSError as e:
@@ -331,49 +332,104 @@ def is_duplicate_signal(symbol, strategy_code, window_seconds=180):
 @bot.event
 async def on_ready():
     logger.info(f'{bot.user} has connected to Discord!')
-    global trading_bot, optimization_manager
+    global optimization_manager
     try:
-        trading_bot = TradingBot()
-        bot.trading_bot = trading_bot
-        logger.info("Trading bot initialized successfully")
+        # trading_bot = TradingBot()
+        # bot.trading_bot = trading_bot
+        # logger.info("Trading bot initialized successfully")
         
         # Initialize optimization manager
-        optimization_manager = OptimizationManager(
-            exchange_client=trading_bot.client if hasattr(trading_bot, 'client') else None
-        )
-        logger.info("Optimization manager initialized successfully")
+        if bot.exchange_client:
+            optimization_manager = OptimizationManager(
+                exchange_client=bot.exchange_client
+            )
+            logger.info("Optimization manager initialized successfully using bot.exchange_client")
+        else:
+            logger.warning("Optimization manager NOT initialized: bot.exchange_client not available at on_ready. Using None.")
+            optimization_manager = OptimizationManager(exchange_client=None)
         
         # Load slash commands cog
-        try:
-            await bot.load_extension('src.bot.cogs.slash_commands')
-            logger.info("Slash commands cog loaded successfully")
-        except Exception as e:
-            logger.error(f"Failed to load slash commands cog: {e}")
+        # try:
+        #     await bot.load_extension('src.bot.cogs.slash_commands')
+        #     logger.info("Slash commands cog loaded successfully from main.py on_ready")
+        # except Exception as e:
+        #     logger.error(f"Failed to load slash commands cog from main.py on_ready: {e}")
         
         # Load RL commands cog
         try:
             rl_commands_cog = RLCommands(bot)
             await bot.add_cog(rl_commands_cog)
-            logger.info("RL commands cog loaded successfully")
+            logger.info("RL commands cog loaded successfully from main.py")
         except Exception as e:
-            logger.error(f"Failed to load RL commands cog: {e}")
+            logger.error(f"Failed to load RL commands cog from main.py: {e}")
         
         # Sync slash commands
-        try:
-            synced = await bot.tree.sync()
-            logger.info(f"Synced {len(synced)} slash command(s)")
-        except Exception as e:
-            logger.error(f"Failed to sync slash commands: {e}")
+        # try:
+        #     synced = await bot.tree.sync()
+        #     logger.info(f"Synced {len(synced)} slash command(s) from main.py on_ready")
+        # except Exception as e:
+        #     logger.error(f"Failed to sync slash commands from main.py on_ready: {e}")
         
-        # Start health monitoring and HTTP server
+        # Add missing method for dual_macd_rsi command
+        if not hasattr(bot, 'get_market_data'):
+            async def get_market_data_wrapper(symbol, interval, limit=100, exchange=None):
+                """Wrapper for get_market_data"""
+                try:
+                    logger.info(f"Fetching market data for {symbol} on {interval} timeframe")
+                    
+                    # If exchange client isn't initialized, return None
+                    if not bot.exchange_client:
+                        logger.error("Exchange client not initialized")
+                        return None
+                        
+                    # Use exchange client to fetch OHLCV data
+                    ohlcv_data = await bot.exchange_client.fetch_ohlcv(
+                        symbol=symbol,
+                        timeframe=interval,
+                        limit=limit
+                    )
+                    
+                    if not ohlcv_data or len(ohlcv_data) == 0:
+                        logger.error(f"Failed to fetch market data for {symbol}")
+                        return None
+                    
+                    # Convert to pandas DataFrame if it's not already
+                    if not isinstance(ohlcv_data, pd.DataFrame):
+                        df = pd.DataFrame(ohlcv_data, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+                        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+                        df.set_index('timestamp', inplace=True)
+                    else:
+                        df = ohlcv_data
+                        
+                    # Reset index to have timestamp as a column rather than index
+                    if df.index.name == 'timestamp':
+                        df = df.reset_index()
+                    
+                    # Ensure we have all required columns
+                    required_columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume']
+                    for col in required_columns:
+                        if col not in df.columns:
+                            logger.error(f"Missing required column {col} in market data")
+                            return None
+                    
+                    return df
+                    
+                except Exception as e:
+                    logger.error(f"Error getting market data for {symbol}: {str(e)}")
+                    return None
+            
+            # Attach the method to the bot
+            bot.get_market_data = get_market_data_wrapper
+            logger.info("Added get_market_data method to bot for compatibility")
+        
+        # Start health monitoring and HTTP server (local to main.py)
         asyncio.create_task(health_monitor())
         asyncio.create_task(start_health_server())
         
         # Update health status to healthy
         update_health_status(True)
         
-        logger.info(f"Bot is ready! Connected to {len(bot.guilds)} guilds")
-        logger.info(f"Health monitoring started - Health server will attempt to start on available ports")
+        logger.info(f"Main.py on_ready: Custom initializations (RL Cog, health monitor/server) complete.")
         
     except Exception as e:
         logger.error(f"Failed to initialize bot components: {e}")
@@ -488,23 +544,36 @@ async def help_menu(ctx):
 @bot.command(name='balance')
 async def get_balance(ctx):
     """Get your account balance"""
-    if not trading_bot:
-        await ctx.send("Trading bot is not initialized. Check logs for details.")
+    if not bot.exchange_client:
+        await ctx.send("Trading components (exchange client) are not initialized. Check logs for details.")
         return
     
-    balances = trading_bot.get_account_balance()
-    if not balances:
-        await ctx.send("Failed to get account balance or no balance available.")
+    try:
+        balances = await bot.exchange_client.fetch_balance()
+        if not balances:
+            await ctx.send("Failed to get account balance or no balance available.")
+            return
+        
+        response = "**Your Account Balance:**\n"
+        if 'free' in balances and isinstance(balances['free'], dict):
+            for currency, amount in balances['free'].items():
+                if amount > 0:
+                    response += f"- {currency}: {amount:.8f}\n"
+        elif isinstance(balances, dict):
+            for currency, amount in balances.items():
+                if isinstance(amount, (int,float)) and amount > 0 :
+                     response += f"- {currency}: {amount}\n"
+        else:
+            response += "Could not parse balance data.\n"
+
+        if len(response) == len("**Your Account Balance:**\n"):
+            response += "No balances to display or unable to fetch details."
+            
+    except Exception as e:
+        logger.error(f"Error fetching balance: {e}")
+        await ctx.send(f"An error occurred while fetching balance: {e}")
         return
-    
-    response = "**Your Account Balance:**\n"
-    for balance in balances:
-        asset = balance['asset']
-        free = float(balance['free'])
-        locked = float(balance['locked'])
-        if free > 0 or locked > 0:
-            response += f"• {asset}: Free: {free}, Locked: {locked}\n"
-    
+
     await ctx.send(response)
 
 @bot.command(name='chart')
@@ -516,8 +585,8 @@ async def get_chart(ctx, symbol: str, interval: str = '1d', limit: int = 30):
     - interval: Time interval (default: 1d)
     - limit: Number of data points (default: 30)
     """
-    if not trading_bot:
-        await ctx.send("Trading bot is not initialized. Check logs for details.")
+    if not bot.exchange_client:
+        await ctx.send("Trading components (exchange client) are not initialized. Check logs for details.")
         return
     
     symbol = symbol.upper()
@@ -530,7 +599,7 @@ async def get_chart(ctx, symbol: str, interval: str = '1d', limit: int = 30):
         return
     
     await ctx.send(f"Generating chart for {symbol} ({interval})...")
-    chart_data = trading_bot.generate_chart(symbol, interval, limit)
+    chart_data = await bot.generate_chart(symbol, interval, limit)
     
     if chart_data:
         await ctx.send(file=File(chart_data, filename=f"{symbol}_{interval}_chart.png"))
@@ -545,8 +614,8 @@ async def buy(ctx, symbol: str, quantity: float):
     - symbol: The cryptocurrency symbol (e.g., BTC, ETH)
     - quantity: Amount to buy
     """
-    if not trading_bot:
-        await ctx.send("Trading bot is not initialized. Check logs for details.")
+    if not bot.exchange_client:
+        await ctx.send("Trading components (exchange client) are not initialized. Check logs for details.")
         return
     
     symbol = symbol.upper()
@@ -554,23 +623,26 @@ async def buy(ctx, symbol: str, quantity: float):
         symbol = f"{symbol}USDT"
     
     await ctx.send(f"Placing market buy order for {quantity} {symbol}...")
-    order = trading_bot.place_order(symbol, 'BUY', quantity)
-    
-    if order:
-        # Add order to history
-        current_price = trading_bot.get_price(symbol)
-        bot.order_history.add_order(
-            order_id=str(order.get('orderId', '')),
-            symbol=symbol,
-            side='BUY',
-            amount=quantity,
-            price=float(current_price) if current_price else 0.0,
-            status='placed',
-            order_type='market'
-        )
-        await ctx.send(f"Order placed successfully! Order ID: {order['orderId']}")
-    else:
-        await ctx.send("Failed to place order. Check logs for details.")
+    try:
+        order_result = await bot.exchange_client.create_market_buy_order(symbol, quantity)
+        
+        if order_result and order_result.success:
+            response = f"Buy order for {quantity} {symbol} placed successfully. Order ID: {order_result.order_id}"
+            if hasattr(bot, 'order_history') and hasattr(bot.order_history, 'add_order_from_result'):
+                bot.order_history.add_order_from_result(order_result)
+            elif hasattr(bot.exchange_client, 'order_history'):
+                 bot.exchange_client.order_history.add_order_from_result(order_result)
+        else:
+            error_msg = order_result.error_message if order_result else "Unknown error creating order."
+            response = f"Failed to place buy order for {quantity} {symbol}. Error: {error_msg}"
+    except AttributeError as e:
+        logger.error(f"Missing method for buy order: {e}")
+        response = f"Buy command is not fully implemented with the new trading core: {e}"
+    except Exception as e:
+        logger.error(f"Error executing buy command: {e}")
+        response = f"An error occurred: {e}"
+        
+    await ctx.send(response)
 
 @bot.command(name='sell')
 async def sell(ctx, symbol: str, quantity: float):
@@ -580,8 +652,8 @@ async def sell(ctx, symbol: str, quantity: float):
     - symbol: The cryptocurrency symbol (e.g., BTC, ETH)
     - quantity: Amount to sell
     """
-    if not trading_bot:
-        await ctx.send("Trading bot is not initialized. Check logs for details.")
+    if not bot.exchange_client:
+        await ctx.send("Trading components (exchange client) are not initialized. Check logs for details.")
         return
     
     symbol = symbol.upper()
@@ -589,23 +661,26 @@ async def sell(ctx, symbol: str, quantity: float):
         symbol = f"{symbol}USDT"
     
     await ctx.send(f"Placing market sell order for {quantity} {symbol}...")
-    order = trading_bot.place_order(symbol, 'SELL', quantity)
-    
-    if order:
-        # Add order to history
-        current_price = trading_bot.get_price(symbol)
-        bot.order_history.add_order(
-            order_id=str(order.get('orderId', '')),
-            symbol=symbol,
-            side='SELL',
-            amount=quantity,
-            price=float(current_price) if current_price else 0.0,
-            status='placed',
-            order_type='market'
-        )
-        await ctx.send(f"Order placed successfully! Order ID: {order['orderId']}")
-    else:
-        await ctx.send("Failed to place order. Check logs for details.")
+    try:
+        order_result = await bot.exchange_client.create_market_sell_order(symbol, quantity)
+        
+        if order_result and order_result.success:
+            response = f"Sell order for {quantity} {symbol} placed successfully. Order ID: {order_result.order_id}"
+            if hasattr(bot, 'order_history') and hasattr(bot.order_history, 'add_order_from_result'):
+                bot.order_history.add_order_from_result(order_result)
+            elif hasattr(bot.exchange_client, 'order_history'):
+                 bot.exchange_client.order_history.add_order_from_result(order_result)
+        else:
+            error_msg = order_result.error_message if order_result else "Unknown error creating order."
+            response = f"Failed to place sell order for {quantity} {symbol}. Error: {error_msg}"
+    except AttributeError as e:
+        logger.error(f"Missing method for sell order: {e}")
+        response = f"Sell command is not fully implemented with the new trading core: {e}"
+    except Exception as e:
+        logger.error(f"Error executing sell command: {e}")
+        response = f"An error occurred: {e}"
+
+    await ctx.send(response)
 
 @bot.command(name='strategies')
 async def list_strategies(ctx):
@@ -621,8 +696,8 @@ async def analyze(ctx, strategy: str, symbol: str, interval: str = '1d'):
     - symbol: The cryptocurrency symbol (e.g., BTC, ETH)
     - interval: Time interval (default: 1d)
     """
-    if not trading_bot:
-        await ctx.send("Trading bot is not initialized. Check logs for details.")
+    if not bot.exchange_client:
+        await ctx.send("Trading components (exchange client) are not initialized. Check logs for details.")
         return
     
     symbol = symbol.upper()
@@ -635,7 +710,7 @@ async def analyze(ctx, strategy: str, symbol: str, interval: str = '1d'):
         return
     
     await ctx.send(f"Analyzing {symbol} with {strategy} strategy ({interval})...")
-    result = trading_bot.analyze_symbol(strategy, symbol, interval)
+    result = bot.analyze_symbol(strategy, symbol, interval)
     
     if not result:
         await ctx.send(f"Failed to analyze {symbol} with {strategy} strategy.")
@@ -669,8 +744,8 @@ async def strategy_chart(ctx, strategy: str, symbol: str, interval: str = '1d', 
     - interval: Time interval (default: 1d)
     - limit: Number of data points (default: 30)
     """
-    if not trading_bot:
-        await ctx.send("Trading bot is not initialized. Check logs for details.")
+    if not bot.exchange_client:
+        await ctx.send("Trading components (exchange client) are not initialized. Check logs for details.")
         return
     
     symbol = symbol.upper()
@@ -683,7 +758,7 @@ async def strategy_chart(ctx, strategy: str, symbol: str, interval: str = '1d', 
         return
     
     await ctx.send(f"Generating strategy chart for {symbol} with {strategy} strategy ({interval})...")
-    chart_data = trading_bot.generate_strategy_chart(strategy, symbol, interval, limit)
+    chart_data = await bot.generate_strategy_chart(strategy, symbol, interval, limit)
     
     if chart_data:
         await ctx.send(file=File(chart_data, filename=f"{symbol}_{strategy}_{interval}_chart.png"))
@@ -699,8 +774,8 @@ async def add_strategy(ctx, strategy: str, symbol: str, interval: str = '1d'):
     - symbol: The cryptocurrency symbol (e.g., BTC, ETH)
     - interval: Time interval (default: 1d)
     """
-    if not trading_bot:
-        await ctx.send("Trading bot is not initialized. Check logs for details.")
+    if not bot.exchange_client:
+        await ctx.send("Trading components (exchange client) are not initialized. Check logs for details.")
         return
     
     symbol = symbol.upper()
@@ -712,7 +787,7 @@ async def add_strategy(ctx, strategy: str, symbol: str, interval: str = '1d'):
         await ctx.send(f"Invalid interval. Please use one of: {', '.join(valid_intervals)}")
         return
     
-    success = trading_bot.add_strategy(strategy, symbol, interval)
+    success = bot.add_strategy(strategy, symbol, interval)
     if success:
         await ctx.send(f"Added {strategy} strategy for {symbol} ({interval})")
     else:
@@ -727,15 +802,15 @@ async def remove_strategy(ctx, strategy: str, symbol: str, interval: str = '1d')
     - symbol: The cryptocurrency symbol (e.g., BTC, ETH)
     - interval: Time interval (default: 1d)
     """
-    if not trading_bot:
-        await ctx.send("Trading bot is not initialized. Check logs for details.")
+    if not bot.exchange_client:
+        await ctx.send("Trading components (exchange client) are not initialized. Check logs for details.")
         return
     
     symbol = symbol.upper()
     if not symbol.endswith('USDT'):
         symbol = f"{symbol}USDT"
     
-    success = trading_bot.remove_strategy(strategy, symbol, interval)
+    success = bot.remove_strategy(strategy, symbol, interval)
     if success:
         await ctx.send(f"Removed {strategy} strategy for {symbol} ({interval})")
     else:
@@ -744,11 +819,11 @@ async def remove_strategy(ctx, strategy: str, symbol: str, interval: str = '1d')
 @bot.command(name='list_active_strategies')
 async def list_active_strategies(ctx):
     """List all active trading strategies"""
-    if not trading_bot:
-        await ctx.send("Trading bot is not initialized. Check logs for details.")
+    if not bot.exchange_client:
+        await ctx.send("Trading components (exchange client) are not initialized. Check logs for details.")
         return
     
-    strategies = trading_bot.list_strategies()
+    strategies = bot.list_strategies()
     if not strategies:
         await ctx.send("No active strategies")
         return
@@ -761,15 +836,18 @@ async def list_active_strategies(ctx):
 
 @bot.command(name='test_connection')
 async def test_binance_connection(ctx):
-    """Test the connection to Binance API"""
-    if not trading_bot:
-        await ctx.send("Trading bot is not initialized. Check logs for details.")
+    """Test connection to the configured exchange"""
+    if not bot.exchange_client:
+        await ctx.send("Trading components (exchange client) are not initialized.")
         return
     
-    if trading_bot.test_connection():
-        await ctx.send("Connection to Binance API successful! ✅")
+    connected = await bot.exchange_client.test_connection()
+    exchange_name = bot.exchange_client.exchange_name if hasattr(bot.exchange_client, 'exchange_name') else "configured exchange"
+    
+    if connected:
+        await ctx.send(f"Connection to {exchange_name} API successful! ✅")
     else:
-        await ctx.send("Failed to connect to Binance API. Check logs for details. ❌")
+        await ctx.send(f"Failed to connect to {exchange_name} API. Check logs for details. ❌")
 
 @bot.command(name='sync')
 async def sync_commands(ctx, guild_id: int = None):
@@ -824,7 +902,7 @@ async def bot_health(ctx):
         # Basic status
         embed.add_field(name="Overall Status", value="🟢 Healthy" if bot_healthy else "🔴 Unhealthy", inline=True)
         embed.add_field(name="Discord Connection", value="🟢 Connected" if bot.is_ready() else "🔴 Disconnected", inline=True)
-        embed.add_field(name="Trading Bot", value="🟢 Ready" if trading_bot is not None else "🔴 Not Ready", inline=True)
+        embed.add_field(name="Trading Bot", value="🟢 Ready" if bot.exchange_client is not None else "🔴 Not Ready", inline=True)
         
         # Uptime and performance
         embed.add_field(name="Uptime", value=f"{uptime.days}d {uptime.seconds//3600}h {(uptime.seconds%3600)//60}m", inline=True)
@@ -840,11 +918,11 @@ async def bot_health(ctx):
             embed.add_field(name="Users", value="N/A", inline=True)
         
         # Exchange connection status
-        exchange_status = "🟢 Connected" if trading_bot and hasattr(trading_bot, 'client') else "🔴 Disconnected"
+        exchange_status = "🟢 Connected" if bot.exchange_client and hasattr(bot.exchange_client, 'exchange_name') else "🔴 Disconnected"
         embed.add_field(name="Exchange", value=exchange_status, inline=True)
         
         # Health server info
-        embed.add_field(name="Health Endpoint", value="http://localhost:8080/health", inline=False)
+        embed.add_field(name="Health Endpoint", value=f"http://localhost:{health_server_port}/health", inline=False)
         
         embed.set_footer(text=f"Health check by {ctx.author.display_name} | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         
@@ -857,196 +935,56 @@ async def bot_health(ctx):
 
 @bot.command(name='indicator')
 async def analyze_indicator(ctx, indicator_name: str, symbol: str, interval: str = "1h", *args):
-    """Analyze a symbol using a specific indicator
-    
-    Parameters:
-    - indicator_name: Name of the indicator (rsi, macd, ema)
-    - symbol: The cryptocurrency symbol (e.g., BTC, ETH)
-    - interval: Time interval (default: 1h)
-    - args: Additional parameters for the indicator
-    
-    Examples:
-    b!indicator rsi BTC 1h 14 30 70
-    b!indicator macd ETH 4h 12 26 9
-    b!indicator ema BTC 1d 20
-    """
-    if not trading_bot:
-        await ctx.send("Trading bot is not initialized. Check logs for details.")
-        return
-    
-    # Process the symbol
-    symbol = symbol.upper()
-    if not symbol.endswith('USDT'):
-        symbol = f"{symbol}USDT"
-    
-    # Parse parameters based on indicator
-    params = {}
-    if indicator_name.lower() == 'rsi':
-        # Default RSI parameters: period, oversold, overbought
-        if len(args) >= 1:
-            params['period'] = int(args[0])
-        if len(args) >= 3:
-            params['oversold'] = int(args[1])
-            params['overbought'] = int(args[2])
-    elif indicator_name.lower() == 'macd':
-        # Default MACD parameters: fast_period, slow_period, signal_period
-        if len(args) >= 1:
-            params['fast_period'] = int(args[0])
-        if len(args) >= 2:
-            params['slow_period'] = int(args[1])
-        if len(args) >= 3:
-            params['signal_period'] = int(args[2])
-    elif indicator_name.lower() == 'ema':
-        # Default EMA parameter: period
-        if len(args) >= 1:
-            params['period'] = int(args[0])
-    
-    # Get analysis result
-    result = trading_bot.analyze_with_indicator(indicator_name, symbol, interval, **params)
-    
-    if result:
-        # Create embed with the analysis result
-        embed = discord.Embed(
-            title=f"{symbol} {indicator_name.upper()} Analysis",
-            description=f"Interval: {interval}",
-            color=0x00FFFF
-        )
-        
-        # Add signal
-        signal_emoji = "🔴" if result["signal"] == "SELL" else "🟢" if result["signal"] == "BUY" else "⚪"
-        embed.add_field(name="Signal", value=f"{signal_emoji} {result['signal']}", inline=False)
-        
-        # Add current price
-        embed.add_field(name="Current Price", value=f"${result['current_price']:.4f}", inline=True)
-        
-        # Add indicator-specific fields
-        if indicator_name.lower() == 'rsi':
-            embed.add_field(name="RSI Value", value=f"{result['rsi']:.2f}", inline=True)
-            embed.add_field(name="Oversold", value=f"{result['oversold']}", inline=True)
-            embed.add_field(name="Overbought", value=f"{result['overbought']}", inline=True)
-        elif indicator_name.lower() == 'macd':
-            embed.add_field(name="MACD Line", value=f"{result['macd']:.6f}", inline=True)
-            embed.add_field(name="Signal Line", value=f"{result['signal_line']:.6f}", inline=True)
-            embed.add_field(name="Histogram", value=f"{result['histogram']:.6f}", inline=True)
-        elif indicator_name.lower() == 'ema':
-            embed.add_field(name="EMA Value", value=f"{result['ema']:.4f}", inline=True)
-        
-        # Set timestamp
-        embed.timestamp = datetime.utcnow()
-        
-        await ctx.send(embed=embed)
-    else:
-        await ctx.send(f"Could not analyze {symbol} with {indicator_name}. Please check the parameters.")
+    """Analyze a specific indicator on a coin. TODO: Refactor with new TechnicalIndicators service."""
+    await ctx.send("The 'indicator' command is temporarily disabled for refactoring. Please use specific analysis commands or strategy features.")
+    return
+    # This command needs significant refactoring to use bot.indicators (TechnicalIndicators service)
+    # Original code used IndicatorFactory which is removed.
+    # Example of how it might work (conceptual):
+    # if not bot.exchange_client or not bot.indicators:
+    #     await ctx.send("Trading or indicator services not ready.")
+    #     return
+    # try:
+    #     ohlcv = await bot.exchange_client.fetch_ohlcv(symbol.upper().replace('/', ''), timeframe=interval, limit=200) # Adjust limit as needed
+    #     if not ohlcv:
+    #         await ctx.send(f"Could not fetch data for {symbol}.")
+    #         return
+    #     df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+    #     df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+    #     df.set_index('timestamp', inplace=True)
+
+    #     indicator_method_name = f"calculate_{indicator_name.lower()}"
+    #     if hasattr(bot.indicators, indicator_method_name):
+    #         indicator_calc_method = getattr(bot.indicators, indicator_method_name)
+    #         # Need to parse *args to pass correct parameters to specific calculate_... methods
+    #         # For now, this is a placeholder
+    #         indicator_result = indicator_calc_method(df) # This needs proper arg handling
+
+    #         embed = discord.Embed(title=f"{indicator_result.name} Analysis for {symbol.upper()}", color=0x00ff00)
+    #         embed.add_field(name="Current Value", value=f"{indicator_result.metadata.get('current_value', 'N/A')}", inline=True)
+    #         embed.add_field(name="Signal", value=f"{indicator_result.signal}", inline=True)
+    #         embed.add_field(name="Strength", value=f"{indicator_result.strength:.2f}" if indicator_result.strength is not None else "N/A", inline=True)
+    #         # Add more details from indicator_result.metadata
+    #         await ctx.send(embed=embed)
+    #     else:
+    #         await ctx.send(f"Indicator '{indicator_name}' is not supported by the new system or calculation method not found.")
+    # except Exception as e:
+    #     logger.error(f"Error in analyze_indicator: {e}")
+    #     await ctx.send(f"An error occurred: {str(e)}")
 
 @bot.command(name='indicator_chart')
 async def generate_indicator_chart(ctx, indicator_name: str, symbol: str, interval: str = "1h", *args):
-    """Generate a chart with indicator visualization
-    
-    Parameters:
-    - indicator_name: Name of the indicator (rsi, macd, ema)
-    - symbol: The cryptocurrency symbol (e.g., BTC, ETH)
-    - interval: Time interval (default: 1h)
-    - args: Additional parameters for the indicator
-    
-    Examples:
-    b!indicator_chart rsi BTC 1h 14 30 70
-    b!indicator_chart macd ETH 4h 12 26 9
-    b!indicator_chart ema BTC 1d 20
-    """
-    if not trading_bot:
-        await ctx.send("Trading bot is not initialized. Check logs for details.")
-        return
-    
-    await ctx.send(f"Generating {indicator_name} chart for {symbol}...")
-    
-    # Process the symbol
-    symbol = symbol.upper()
-    if not symbol.endswith('USDT'):
-        symbol = f"{symbol}USDT"
-    
-    # Parse parameters based on indicator (same as analyze_indicator)
-    params = {}
-    if indicator_name.lower() == 'rsi':
-        if len(args) >= 1:
-            params['period'] = int(args[0])
-        if len(args) >= 3:
-            params['oversold'] = int(args[1])
-            params['overbought'] = int(args[2])
-    elif indicator_name.lower() == 'macd':
-        if len(args) >= 1:
-            params['fast_period'] = int(args[0])
-        if len(args) >= 2:
-            params['slow_period'] = int(args[1])
-        if len(args) >= 3:
-            params['signal_period'] = int(args[2])
-    elif indicator_name.lower() == 'ema':
-        if len(args) >= 1:
-            params['period'] = int(args[0])
-    
-    # Generate chart
-    chart_buf = trading_bot.generate_indicator_chart(indicator_name, symbol, interval, **params)
-    
-    if chart_buf:
-        # Create a Discord file from the buffer
-        chart_file = File(fp=chart_buf, filename=f"{symbol}_{indicator_name}_chart.png")
-        
-        # Create embed with the chart
-        embed = discord.Embed(
-            title=f"{symbol} {indicator_name.upper()} Chart",
-            description=f"Interval: {interval}",
-            color=0x00FFFF
-        )
-        
-        # Set the chart image
-        embed.set_image(url=f"attachment://{symbol}_{indicator_name}_chart.png")
-        
-        # Set timestamp
-        embed.timestamp = datetime.utcnow()
-        
-        await ctx.send(embed=embed, file=chart_file)
-    else:
-        await ctx.send(f"Could not generate chart for {symbol} with {indicator_name}. Please check the parameters.")
+    """Generate a chart with indicator values. TODO: Refactor with new TechnicalIndicators service."""
+    await ctx.send("The 'indicator_chart' command is temporarily disabled for refactoring.")
+    return
+    # This command also needs significant refactoring similar to analyze_indicator
 
 @bot.command(name='help_indicators')
 async def help_indicators(ctx):
-    """Show help for indicator commands"""
-    embed = discord.Embed(
-        title="Technical Indicator Commands",
-        description="Commands for analyzing and visualizing technical indicators",
-        color=0x00FFFF
-    )
-    
-    embed.add_field(
-        name="b!indicator <indicator_name> <symbol> [interval] [params]",
-        value="Analyze a symbol using a specific indicator\n"
-              "Example: `b!indicator rsi BTC 1h 14 30 70`",
-        inline=False
-    )
-    
-    embed.add_field(
-        name="b!indicator_chart <indicator_name> <symbol> [interval] [params]",
-        value="Generate a chart with indicator visualization\n"
-              "Example: `b!indicator_chart macd ETH 4h 12 26 9`",
-        inline=False
-    )
-    
-    embed.add_field(
-        name="Available Indicators",
-        value="- `rsi`: Relative Strength Index [period] [oversold] [overbought]\n"
-              "- `macd`: Moving Average Convergence Divergence [fast_period] [slow_period] [signal_period]\n"
-              "- `ema`: Exponential Moving Average [period]",
-        inline=False
-    )
-    
-    embed.add_field(
-        name="Default Parameters",
-        value="- RSI: period=14, oversold=30, overbought=70\n"
-              "- MACD: fast_period=12, slow_period=26, signal_period=9\n"
-              "- EMA: period=20",
-        inline=False
-    )
-    
-    await ctx.send(embed=embed)
+    """Show available indicators and usage. TODO: Update for new TechnicalIndicators service."""
+    await ctx.send("Indicator help is temporarily disabled for refactoring. Standard indicators like RSI, MACD, BB, ATR are available via analysis commands when re-enabled.")
+    return
+    # This needs to list indicators available from bot.indicators (TechnicalIndicators)
 
 @bot.command(name='signal')
 async def send_signal(ctx, symbol: str, strategy_code: str, entry_price: float, tp_price: float, sl_price: float, ratio: str = "0.0%", status: str = "takeprofit", imminent: int = 1):
@@ -1062,8 +1000,31 @@ async def send_signal(ctx, symbol: str, strategy_code: str, entry_price: float, 
     - status: Signal status (default: takeprofit)
     - imminent: Imminent entry indicator (default: 1)
     """
-    embed = create_signal_embed(f"{symbol}-{strategy_code}", "", entry_price, tp_price, sl_price, ratio, status, imminent, "Reina")
-    await ctx.send(embed=embed)
+    signal_data = {
+        "symbol": symbol,
+        "strategy_code": strategy_code,
+        "entry_price": entry_price,
+        "tp_price": tp_price,
+        "sl_price": sl_price,
+        "ratio": ratio,
+        "status": status,
+        "imminent": imminent,
+        "author": str(ctx.author)
+    }
+    
+    embed = await bot.create_signal_embed(signal_data=signal_data, author=str(ctx.author))
+    
+    target_channel_id = os.getenv('DISCORD_SIGNAL_CHANNEL_ID', ctx.channel.id)
+    if not target_channel_id:
+        await ctx.send("No signal channel configured. Please set DISCORD_SIGNAL_CHANNEL_ID in environment variables.")
+        return
+    
+    target_channel = bot.get_channel(int(target_channel_id))
+    if not target_channel:
+        await ctx.send(f"Could not find channel with ID {target_channel_id}")
+        return
+    
+    await target_channel.send(embed=embed)
 
 @bot.command(name='sc01')
 async def sc01_signal(ctx, symbol: str, strategy_code: str, entry_price: float, tp_price: float, sl_price: float, ratio: str = "0.0%", status: str = "takeprofit", imminent: int = 1):
@@ -1071,18 +1032,19 @@ async def sc01_signal(ctx, symbol: str, strategy_code: str, entry_price: float, 
     
     Parameters as in //signal command
     """
-    embed = discord.Embed(
-        title=f"SC01 trading signals [Reina]",
-        description="",
-        color=0x7CFC00  # Green color
-    )
+    signal_data = {
+        "symbol": symbol,
+        "strategy_code": strategy_code,
+        "entry_price": entry_price,
+        "tp_price": tp_price,
+        "sl_price": sl_price,
+        "ratio": ratio,
+        "status": status,
+        "imminent": imminent,
+        "author": str(ctx.author)
+    }
     
-    # Add a smaller embed for the signal
-    signal_embed = create_signal_embed(f"{symbol}-{strategy_code}", "", entry_price, tp_price, sl_price, ratio, status, imminent, "Reina")
-    
-    # Convert the signal embed to a field in the main embed
-    embed.add_field(name=f"{symbol} - {strategy_code}", value=signal_embed.description, inline=False)
-    embed.set_footer(text="By Reina~")
+    embed = await bot.create_signal_embed(signal_data=signal_data, author=str(ctx.author))
     
     await ctx.send(embed=embed)
 
@@ -1092,13 +1054,13 @@ async def add_sc_signal(ctx, symbol: str, strategy_code: str, entry_price: float
     
     Parameters similar to //signal command
     """
-    if not trading_bot:
-        await ctx.send("Trading bot is not initialized. Check logs for details.")
+    if not bot.exchange_client:
+        await ctx.send("Trading components (exchange client) are not initialized. Check logs for details.")
         return
     
     try:
         # Create an SC strategy instance
-        sc_strategy = trading_bot.get_strategy('sc_signal', version="SC01", author="Reina")
+        sc_strategy = bot.get_strategy('sc_signal', version="SC01", author="Reina")
         
         # Generate the signal
         signal = sc_strategy.generate_signal(
@@ -1113,11 +1075,22 @@ async def add_sc_signal(ctx, symbol: str, strategy_code: str, entry_price: float
         )
         
         # Store the signal (you'd need to implement this in TradingBot)
-        if hasattr(trading_bot, 'store_signal'):
-            trading_bot.store_signal(signal)
+        if hasattr(bot, 'store_signal'):
+            bot.store_signal(signal)
             await ctx.send(f"Added SC signal for {symbol}-{strategy_code}")
         else:
-            embed = create_signal_embed(f"{symbol}-{strategy_code}", "", entry_price, tp_price, sl_price, ratio, "takeprofit", 1, "Reina")
+            signal_data = {
+                "symbol": symbol,
+                "strategy_code": strategy_code,
+                "entry_price": entry_price,
+                "tp_price": tp_price,
+                "sl_price": sl_price,
+                "ratio": ratio,
+                "status": "takeprofit",
+                "imminent": 1,
+                "author": str(ctx.author)
+            }
+            embed = await bot.create_signal_embed(signal_data=signal_data, author=str(ctx.author))
             await ctx.send("Signal created (but storage not implemented):", embed=embed)
     
     except Exception as e:
@@ -1151,15 +1124,12 @@ async def on_command_error(ctx, error):
 @bot.command(name='generate_signal')
 @cooldown(1, 10, BucketType.user)  # Increase cooldown to 10 seconds
 async def generate_signal(ctx, symbol: str, strategy_code: str = "SC02", risk_reward: float = 2.0):
-    """Generate a trading signal using real Binance data
+    """Generate a trading signal using the bot's strategy logic. TODO: Review strategy_manager integration."""
     
-    Parameters:
-    - symbol: The cryptocurrency symbol (e.g., AAVE, BTC)
-    - strategy_code: Strategy code (default: SC02)
-    - risk_reward: Risk/reward ratio (default: 2.0)
-    """
-    logger.info(f"Generate signal command called by {ctx.author} for {symbol} with {strategy_code}")
-    
+    if not bot.strategy_manager or not bot.exchange_client:
+        await ctx.send("Trading bot components (strategy manager or exchange client) are not initialized.")
+        return
+
     # Pre-check for duplicate signals
     symbol = symbol.upper()
     if is_duplicate_signal(symbol, strategy_code):
@@ -1185,52 +1155,89 @@ async def generate_signal(ctx, symbol: str, strategy_code: str = "SC02", risk_re
     signal_sent = False  # Track if signal has been sent
     
     try:
-        if not trading_bot:
-            await ctx.send("Trading bot is not initialized. Check logs for details.")
+        await ctx.defer() # Defer response as signal generation can take time
+
+        # Normalize symbol for CCXT if needed by exchange_client.get_price
+        ccxt_symbol = symbol.upper()
+        if '/' not in ccxt_symbol: # Assuming default like BTC -> BTC/USDT
+            # This might need adjustment based on how exchange_client.get_price expects symbols
+             ccxt_symbol = f"{ccxt_symbol}/USDT" 
+        
+        # current_price = trading_bot.client.get_price(symbol) # OLD
+        current_price_data = await bot.exchange_client.get_price(ccxt_symbol) # UPDATED - get_price might return more than just a float
+        
+        current_price = None
+        if isinstance(current_price_data, dict) and 'last' in current_price_data:
+            current_price = current_price_data['last']
+        elif isinstance(current_price_data, (float, int)):
+            current_price = current_price_data
+            
+        if current_price is None:
+            await ctx.followup.send(f"Could not fetch current price for {symbol}.")
+            clear_command_running(ctx.author.id, ctx.command.name)
             return
+            
+        # signal_data = trading_bot.generate_signal_data(symbol, strategy_code, risk_reward) # OLD
+        # TradingBotCore has self.strategy_manager.generate_signal(symbol, strategy_name, timeframe)
+        # We need a timeframe for the new strategy_manager. Using a default or config.
+        # The return is a TradingSignal object, not a dict.
+        # This part requires careful adaptation. For now, let's assume a placeholder.
+        # TODO: Properly integrate with bot.strategy_manager.generate_signal
         
-        # Send only one status message
-        status_message = await ctx.send(f"Generating trading signal for {symbol} with {strategy_code} strategy...")
+        timeframe_for_signal = bot.config.timeframes.get('primary', '1h') # Example: get primary timeframe from config
         
-        logger.info(f"Starting signal generation for {symbol}-{strategy_code}")
+        logger.info(f"Attempting to generate signal for {symbol} with strategy {strategy_code} on timeframe {timeframe_for_signal} by {ctx.author}")
+
+        # Placeholder for new strategy manager integration
+        # actual_signal_object = await bot.strategy_manager.generate_signal(
+        # symbol=ccxt_symbol,
+        # strategy_name=strategy_code, # Ensure strategy_code matches a strategy known to StrategyManager
+        # timeframe=timeframe_for_signal
+        # )
+        #
+        # if not actual_signal_object or actual_signal_object.signal == 'ERROR' or actual_signal_object.signal == 'HOLD':
+        # await ctx.followup.send(f"No clear trading signal generated for {symbol} with strategy {strategy_code} at this time.")
+        # clear_command_running(ctx.author.id, ctx.command.name)
+        # return
+        #
+        # # Convert TradingSignal object to the dict format expected by create_signal_embed
+        # signal_data_dict = {
+        # "symbol": actual_signal_object.symbol,
+        # "signal_type": actual_signal_object.signal, # e.g. BUY, SELL
+        # "entry_price": actual_signal_object.entry_price,
+        # "tp_price": actual_signal_object.take_profit,
+        # "sl_price": actual_signal_object.stop_loss,
+        # "strategy_code": actual_signal_object.strategy_name,
+        # "confidence": actual_signal_object.confidence, # Assuming create_signal_embed can handle this
+        # "risk_reward_ratio": risk_reward, # Or calculate from TP/SL if available in actual_signal_object
+        # "current_price": current_price,
+        # "imminent": 1, # Default
+        # "status": "takeprofit", # Default
+        # "author": str(ctx.author),
+        # "ratio": f"{risk_reward:.1f}:1 R:R" # Example formatting
+        # }
+        # This is a temporary bypass as strategy integration is complex:
+        await ctx.followup.send(f"Signal generation for {symbol} using strategy {strategy_code} is under refactoring due to system updates. Please try again later or use manual signal commands.")
+        clear_command_running(ctx.author.id, ctx.command.name)
+        return
+
+        # embed = create_signal_embed(signal_data=signal_data, author=str(ctx.author)) # OLD
+        # embed = await bot.create_signal_embed(signal_data=signal_data_dict, author=str(ctx.author)) # UPDATED
+        # await ctx.followup.send(embed=embed)
         
-        # Generate signal from real market data with author explicitly set to "Reina"
-        signal = trading_bot.generate_trading_signal(symbol, strategy_code, risk_reward, "Reina")
-        
-        if not signal:
-            logger.warning(f"Failed to generate signal for {symbol}")
-            await status_message.edit(content=f"Failed to generate signal for {symbol}. Check logs for details.")
-            return
-        
-        logger.info(f"Signal generated for {symbol}: {signal['entry_price']}")
-        
-        # Check if a similar signal already exists to prevent duplicates
-        existing_signals = trading_bot.get_signals(symbol)
-        for existing in existing_signals:
-            if (existing['strategy_code'] == signal['strategy_code'] and
-                existing['entry_price'] == signal['entry_price']):
-                logger.info(f"Duplicate signal detected in existing signals check for {symbol}")
-                await status_message.edit(content=f"A signal for {symbol} with same parameters already exists.")
-                return
-        
-        # Store the signal (returns False if it's a duplicate)
-        store_result = trading_bot.store_signal(signal)
-        logger.info(f"Store signal result for {symbol}: {store_result}")
-        
-        if not store_result:
-            await status_message.edit(content=f"A signal for {symbol} with same parameters already exists. Use a different strategy or wait for market conditions to change.")
-            return
+        # Track signal
+        track_signal(symbol, strategy_code)
         
         # Create the embed once with the author explicitly set to "Reina"
-        embed = create_signal_embed(
-            f"{signal['symbol']}-{signal['strategy_code']}", 
+        embed = await bot.create_signal_embed(
+            f"{symbol}-{strategy_code}", 
             "",
-            signal['entry_price'], 
-            signal['tp_price'], 
-            signal['sl_price'], 
-            signal['ratio'], 
-            signal['status'], 
-            signal['imminent'],
+            current_price, 
+            current_price + (current_price * float(ratio.strip('%')) / 100), 
+            current_price - (current_price * float(ratio.strip('%')) / 100), 
+            ratio, 
+            status, 
+            imminent,
             "Reina"  # Explicitly set author to Reina
         )
         
@@ -1245,7 +1252,7 @@ async def generate_signal(ctx, symbol: str, strategy_code: str = "SC02", risk_re
         
         # Send the signal only once and mark as sent
         if not signal_sent:
-            await ctx.send(embed=embed)
+            await ctx.followup.send(embed=embed)
             signal_sent = True
             logger.info(f"Signal sent successfully for {symbol}")
         
@@ -1265,252 +1272,109 @@ async def generate_signal(ctx, symbol: str, strategy_code: str = "SC02", risk_re
 @bot.command(name='market_signals')
 @cooldown(1, 15, BucketType.user)  # Increased cooldown to 15 seconds per user
 async def market_signals(ctx, count: int = 3):
-    """Generate trading signals for top market cap coins
-    
-    Parameters:
-    - count: Number of signals to generate (default: 3)
-    """
-    # Check if this command is already running for this user
-    if is_command_running(ctx.author.id, 'market_signals'):
-        logger.warning(f"Market signals command already running for user {ctx.author}")
-        await ctx.send("Market signal generation is already in progress. Please wait for it to complete.")
+    """Generate multiple market signals for top configured symbols. TODO: Review strategy_manager integration."""
+    if not bot.strategy_manager or not bot.exchange_client:
+        await ctx.send("Trading bot components are not initialized.")
         return
+
+    await ctx.defer()
     
-    # Mark command as running
-    set_command_running(ctx.author.id, 'market_signals')
-    
-    if not trading_bot:
-        await ctx.send("Trading bot is not initialized. Check logs for details.")
-        clear_command_running(ctx.author.id, 'market_signals')
-        return
-    
-    # Top market cap coins
-    top_coins = ["BTC", "ETH", "BNB", "XRP", "ADA", "SOL", "DOT", "AVAX", "MATIC"]
-    
-    # Send a single status message that we'll update
-    status_message = await ctx.send(f"Generating trading signals for top {count} coins...")
-    
-    # Strategy codes to use
-    strategies = ["SC01", "SC02", "SC02+FRVP"]
-    
-    # Main embed
-    main_embed = discord.Embed(
-        title=f"SC01 trading signals [Reina]",
-        description="",
-        color=0x7CFC00  # Green color
-    )
-    
-    signals_count = 0
-    attempted_coins = set()
-    processed_combinations = set()  # Track which symbol-strategy combinations we've tried
-    
-    # Try to generate unique signals up to a maximum number of attempts
-    max_attempts = len(top_coins) * len(strategies)
-    attempts = 0
-    
-    while signals_count < count and attempts < max_attempts:
-        attempts += 1
-        
-        # Pick a coin that hasn't been attempted yet if possible
-        available_coins = [coin for coin in top_coins if coin not in attempted_coins]
-        if not available_coins:
-            # If all coins have been attempted, reset and try again with different strategies
-            attempted_coins = set()
-            available_coins = top_coins
-        
-        symbol = random.choice(available_coins)
-        attempted_coins.add(symbol)
-        
-        # Try each strategy for this symbol until we find one that works
-        random.shuffle(strategies)  # Randomize strategy order
-        strategy_found = False
-        
-        for strategy_code in strategies:
-            # Skip if we've already tried this combination
-            combo = f"{symbol}_{strategy_code}"
-            if combo in processed_combinations:
-                continue
+    # symbols_to_scan = config.trading.symbols[:count] if hasattr(config, 'trading') and hasattr(config.trading, 'symbols') else ["BTC/USDT", "ETH/USDT", "ADA/USDT"][:count]
+    # This should use bot.config
+    symbols_to_scan = bot.config.symbols[:count] if bot.config and bot.config.symbols else ["BTCUSDT", "ETHUSDT", "ADAUSDT"][:count]
+
+    generated_signals = 0
+    timeframe_for_signals = bot.config.timeframes.get('primary', '1h') # Example
+
+    for symbol_config in symbols_to_scan:
+        symbol = symbol_config # Assuming symbols in config are directly usable (e.g. "BTCUSDT")
+        strategy_code = "SC02" # Default or make configurable
+
+        try:
+            logger.info(f"Market Signals: Generating for {symbol} with {strategy_code} on {timeframe_for_signals}")
+            # current_price_data = await trading_bot.client.get_price(symbol) # OLD
+            current_price_data = await bot.exchange_client.get_price(symbol) # UPDATED
             
-            processed_combinations.add(combo)
-            
-            # Check for recent duplicate signals
-            if is_duplicate_signal(symbol, strategy_code):
-                logger.info(f"Skipping {symbol}-{strategy_code} as it was recently generated")
+            current_price = None
+            if isinstance(current_price_data, dict) and 'last' in current_price_data:
+                current_price = current_price_data['last']
+            elif isinstance(current_price_data, (float, int)):
+                current_price = current_price_data
+
+            if current_price is None:
+                logger.warning(f"Market Signals: Could not fetch price for {symbol}")
                 continue
-                
-            try:
-                # Track this signal generation attempt
-                track_signal(symbol, strategy_code)
-                
-                # Generate signal - always use Reina as author for consistency
-                signal = trading_bot.generate_trading_signal(symbol, strategy_code, 2.0, "Reina")
-                
-                if not signal:
-                    continue
-                    
-                # Store the signal (will return False if duplicate)
-                if not trading_bot.store_signal(signal):
-                    continue
-                
-                # Create embedded content
-                entry_text = f"Entry: {signal['entry_price']}"
-                tp_text = f"TP (2R): {signal['tp_price']}"
-                sl_text = f"SL: {signal['sl_price']}"
-                
-                signal_content = f"{entry_text} - {tp_text} - {sl_text}\n"
-                signal_content += f"Imminent (Sắp vào Entry): {signal['imminent']}\n"
-                signal_content += f"Ratio (Tỉ lệ): {signal['ratio']}%\n"
-                signal_content += f"Status (Trạng thái): {signal['status']}"
-                
-                # Add to main embed
-                main_embed.add_field(
-                    name=f"🟢 {signal['symbol']} - {signal['strategy_code']}", 
-                    value=signal_content, 
-                    inline=False
-                )
-                
-                signals_count += 1
-                strategy_found = True
-                break  # Move to next coin after finding a valid strategy
-                
-            except Exception as e:
-                logger.error(f"Error generating signal for {symbol}: {e}")
-                continue
-        
-        # If we couldn't find any valid strategy for this symbol, continue to the next
-        if not strategy_found:
-            continue
-    
-    # Delete status message before sending the results
-    try:
-        await status_message.delete()
-    except:
-        pass
-    
-    if signals_count > 0:
-        main_embed.set_footer(text="By Reina~")
-        await ctx.send(embed=main_embed)
+
+            # signal_data = trading_bot.generate_signal_data(symbol, strategy_code) # OLD
+            # TODO: Integrate with bot.strategy_manager.generate_signal
+            # actual_signal_object = await bot.strategy_manager.generate_signal(symbol, strategy_name=strategy_code, timeframe=timeframe_for_signals)
+            # if actual_signal_object and actual_signal_object.signal not in ['ERROR', 'HOLD']:
+            #     signal_data_dict = { ... convert actual_signal_object to dict ... }
+            #     embed = await bot.create_signal_embed(signal_data=signal_data_dict, author=bot.user.name)
+            #     await ctx.followup.send(embed=embed)
+            #     generated_signals += 1
+            # else:
+            #     logger.info(f"Market Signals: No clear signal for {symbol} with {strategy_code}")
+            # Temporary message for refactoring:
+            await ctx.followup.send(f"Market signal generation for {symbol} ({strategy_code}) is part of ongoing refactoring. Skipping for now.", ephemeral=True)
+
+        except Exception as e:
+            logger.error(f"Error generating market signal for {symbol}: {e}")
+            await ctx.followup.send(f"Error for {symbol}: {e}", ephemeral=True)
+
+    if generated_signals == 0:
+        await ctx.followup.send("No clear trading signals generated for the scanned market symbols at this time (or feature under refactoring).")
     else:
-        await ctx.send("Failed to generate any signals. Check logs for details.")
+        await ctx.followup.send(f"Finished generating {generated_signals} market signals.")
     
-    # Clear command running status
-    clear_command_running(ctx.author.id, 'market_signals')
+    clear_command_running(ctx.author.id, ctx.command.name)
 
 @bot.command(name='live_signal')
 @cooldown(1, 10, BucketType.user)  # Increased cooldown to 10 seconds per user
 async def live_signal(ctx, channel_id: str = None):
-    """Send a live trading signal to a specified channel
-    
-    Parameters:
-    - channel_id: Optional channel ID to send signal to (default: current channel)
-    """
-    # Check if this command is already running for this user
-    if is_command_running(ctx.author.id, 'live_signal'):
-        logger.warning(f"Live signal command already running for user {ctx.author}")
-        await ctx.send("Signal generation is already in progress. Please wait for it to complete.")
+    """Send live trading signal to specified or default channel. TODO: Review strategy_manager integration."""
+    if not bot.strategy_manager or not bot.exchange_client:
+        await ctx.send("Trading bot components are not initialized.")
         return
+
+    await ctx.defer()
     
-    # Mark command as running
-    set_command_running(ctx.author.id, 'live_signal')
-    
-    if not trading_bot:
-        await ctx.send("Trading bot is not initialized. Check logs for details.")
-        clear_command_running(ctx.author.id, 'live_signal')
-        return
-    
-    # Use provided channel or current channel
-    target_channel_id = channel_id or ctx.channel.id
-    
-    # Top market cap coins
-    top_coins = ["BTC", "ETH", "BNB", "SOL", "ADA", "XRP", "DOT", "AVAX", "MATIC", "LINK", "ATOM", "UNI", "AAVE"]
-    
-    # Send a single status message that we'll update
-    status_message = await ctx.send(f"Generating a live trading signal...")
-    signal_sent = False  # Track if signal has been sent
-    
-    # Choose a random coin
-    symbol = random.choice(top_coins)
-    
-    # Strategy codes to use
-    strategies = ["SC01", "SC02", "SC02+FRVP"]
-    strategy_code = random.choice(strategies)
-    
-    # Check for duplicate signals first
-    if is_duplicate_signal(symbol, strategy_code):
-        # If duplicate detected, try a different coin and strategy
-        remaining_coins = [coin for coin in top_coins if coin != symbol]
-        symbol = random.choice(remaining_coins) if remaining_coins else symbol
-        strategy_code = random.choice([s for s in strategies if s != strategy_code])
-        
-        # Still check again with new selection
-        if is_duplicate_signal(symbol, strategy_code):
-            await status_message.edit(content=f"A signal for {symbol}-{strategy_code} was recently generated. Please try again later.")
-            clear_command_running(ctx.author.id, 'live_signal')
+    target_channel_id_int = None
+    if channel_id:
+        try:
+            target_channel_id_int = int(channel_id)
+        except ValueError:
+            await ctx.send("Invalid channel ID format. Please provide a valid integer channel ID.")
             return
     
-    # Track this signal generation attempt
-    track_count = track_signal(symbol, strategy_code)
-    if track_count > 1:
-        logger.warning(f"Signal for {symbol}-{strategy_code} has been requested {track_count} times recently")
-    
+    target_channel = bot.get_channel(target_channel_id_int)
+
+    if not target_channel:
+        await ctx.followup.send(f"Could not find channel with ID {target_channel_id_int if target_channel_id_int else 'default'}. Please provide a valid channel ID.")
+        return
+
+    # For demonstration, pick a symbol and strategy
+    # symbol = config.trading.symbols[0] if hasattr(config, 'trading') and config.trading.symbols else "BTC/USDT"
+    # This should use bot.config
+    symbol = bot.config.symbols[0] if bot.config and bot.config.symbols else "BTCUSDT"
+    strategy_code = "SC02" # Example
+    timeframe_for_signal = bot.config.timeframes.get('primary', '1h') # Example
+
     try:
-        # Generate signal - always use Reina as author for consistency
-        signal = trading_bot.generate_trading_signal(symbol, strategy_code, 2.0, "Reina")
-        
-        if not signal:
-            await status_message.edit(content=f"Failed to generate signal. Check logs for details.")
-            clear_command_running(ctx.author.id, 'live_signal')
-            return
-            
-        # Store the signal (will return False if duplicate)
-        if not trading_bot.store_signal(signal):
-            await status_message.edit(content=f"Signal for {symbol} already exists. Generating a new one...")
-            # Try a different coin
-            remaining_coins = [coin for coin in top_coins if coin != symbol]
-            if remaining_coins:
-                symbol = random.choice(remaining_coins)
-                signal = trading_bot.generate_trading_signal(symbol, strategy_code, 2.0, "Reina")
-                if not signal or not trading_bot.store_signal(signal):
-                    await status_message.edit(content=f"Failed to generate a unique signal. Try again later.")
-                    clear_command_running(ctx.author.id, 'live_signal')
-                    return
-            else:
-                await status_message.edit(content=f"Failed to generate a unique signal. Try again later.")
-                clear_command_running(ctx.author.id, 'live_signal')
-                return
-        
-        # Get target channel
-        target_channel = bot.get_channel(int(target_channel_id))
-        if not target_channel:
-            await status_message.edit(content=f"Channel with ID {target_channel_id} not found.")
-            clear_command_running(ctx.author.id, 'live_signal')
-            return
-        
-        # Create and send the embed only once
-        if not signal_sent:
-            embed = create_signal_embed(
-                f"{signal['symbol']}-{signal['strategy_code']}", 
-                "",
-                signal['entry_price'], 
-                signal['tp_price'], 
-                signal['sl_price'], 
-                signal['ratio'], 
-                signal['status'], 
-                signal['imminent'],
-                "Reina"  # Explicitly set author to Reina
-            )
-            
-            # Delete status message if sending to the same channel
-            if int(target_channel_id) == ctx.channel.id:
-                await status_message.delete()
-                status_message = None
-            else:
-                await status_message.edit(content=f"Signal sent to channel {target_channel.name}.")
-            
-            await target_channel.send(embed=embed)
-            signal_sent = True
-            logger.info(f"Live signal sent successfully for {symbol}")
-        
+        logger.info(f"Live Signal: Generating for {symbol} with {strategy_code} on {timeframe_for_signal} for channel {target_channel.name}")
+        # signal_data = trading_bot.generate_signal_data(symbol, strategy_code) # OLD
+        # TODO: Integrate with bot.strategy_manager.generate_signal
+        # actual_signal_object = await bot.strategy_manager.generate_signal(symbol, strategy_name=strategy_code, timeframe=timeframe_for_signal)
+        # if actual_signal_object and actual_signal_object.signal not in ['ERROR', 'HOLD']:
+        #     signal_data_dict = { ... convert ... } # Convert TradingSignal object to dict for create_signal_embed
+        #     embed = await bot.create_signal_embed(signal_data=signal_data_dict, author=bot.user.name)
+        #     await target_channel.send(embed=embed)
+        #     await ctx.followup.send(f"Live signal for {symbol} sent to #{target_channel.name}.")
+        # else:
+        #     await ctx.followup.send(f"No clear live signal generated for {symbol} with {strategy_code} at this time.")
+        # Temporary message for refactoring:
+        await ctx.followup.send(f"Live signal for {symbol} ({strategy_code}) is under refactoring. Signal not sent to #{target_channel.name}.")
+
     except Exception as e:
         logger.error(f"Error generating live signal: {e}")
         if status_message:
@@ -1528,8 +1392,8 @@ async def update_risk_settings(ctx, risk_per_trade: float = None, max_daily_loss
     - max_daily_loss: Maximum daily loss as percentage (e.g., 5 for 5%)
     - trailing_stop: Trailing stop percentage (e.g., 1.5 for 1.5%)
     """
-    if not trading_bot:
-        await ctx.send("Trading bot is not initialized. Check logs for details.")
+    if not bot.exchange_client:
+        await ctx.send("Trading components (exchange client) are not initialized. Check logs for details.")
         return
     
     # Convert percentages to decimals
@@ -1541,7 +1405,7 @@ async def update_risk_settings(ctx, risk_per_trade: float = None, max_daily_loss
         trailing_stop = trailing_stop / 100
     
     # Update risk parameters
-    trading_bot.update_risk_parameters(
+    bot.update_risk_parameters(
         max_risk_per_trade=risk_per_trade,
         max_daily_loss=max_daily_loss,
         trailing_stop_percent=trailing_stop
@@ -1567,18 +1431,18 @@ async def calculate_position_size(ctx, symbol: str, entry_price: float, stop_los
     - entry_price: The planned entry price
     - stop_loss: The stop loss price
     """
-    if not trading_bot:
-        await ctx.send("Trading bot is not initialized. Check logs for details.")
+    if not bot.exchange_client:
+        await ctx.send("Trading components (exchange client) are not initialized. Check logs for details.")
         return
     
     symbol = symbol.upper()
     if not symbol.endswith('USDT'):
         symbol = f"{symbol}USDT"
     
-    position_size = trading_bot.calculate_position_size(symbol, stop_loss)
+    position_size = bot.calculate_position_size(symbol, stop_loss)
     
     if position_size > 0:
-        current_price = trading_bot.get_price(symbol)
+        current_price = bot.get_price(symbol)
         risk_amount = abs(float(current_price) - stop_loss) * position_size
         
         await ctx.send(f"**Position Size Calculation for {symbol}**\n"
@@ -1587,7 +1451,7 @@ async def calculate_position_size(ctx, symbol: str, entry_price: float, stop_los
                       f"• Current Price: {current_price}\n"
                       f"• Position Size: {position_size:.6f} units\n"
                       f"• Risk Amount: ${risk_amount:.2f} USDT\n"
-                      f"• Risk per Trade: {trading_bot.max_risk_per_trade * 100:.1f}%")
+                      f"• Risk per Trade: {bot.max_risk_per_trade * 100:.1f}%")
     else:
         await ctx.send(f"Failed to calculate position size for {symbol}. Check if daily loss limit has been reached.")
 
@@ -1601,8 +1465,8 @@ async def advanced_buy(ctx, symbol: str, quantity: float, take_profit: float = N
     - take_profit: Optional take profit price
     - stop_loss: Optional stop loss price
     """
-    if not trading_bot:
-        await ctx.send("Trading bot is not initialized. Check logs for details.")
+    if not bot.exchange_client:
+        await ctx.send("Trading components (exchange client) are not initialized. Check logs for details.")
         return
     
     symbol = symbol.upper()
@@ -1611,7 +1475,7 @@ async def advanced_buy(ctx, symbol: str, quantity: float, take_profit: float = N
     
     await ctx.send(f"Placing advanced buy order for {quantity} {symbol}...")
     
-    orders = trading_bot.place_advanced_order(symbol, 'BUY', quantity, take_profit, stop_loss)
+    orders = bot.place_advanced_order(symbol, 'BUY', quantity, take_profit, stop_loss)
     
     if orders and len(orders) > 0:
         main_order = orders[0]
@@ -1628,93 +1492,8 @@ async def advanced_buy(ctx, symbol: str, quantity: float, take_profit: float = N
     else:
         await ctx.send(f"Failed to place order for {symbol}.")
 
-@bot.command(name='dual_macd_rsi')
-async def dual_macd_rsi(ctx, symbol: str, interval: str = '1h', higher_tf: str = '4h'):
-    """Analyze a symbol using dual timeframe MACD+RSI strategy
-    
-    Parameters:
-    - symbol: The cryptocurrency symbol (e.g., BTC, ETH)
-    - interval: Time interval for analysis (default: 1h)
-    - higher_tf: Higher timeframe for confirmation (default: 4h)
-    """
-    if not trading_bot:
-        await ctx.send("Trading bot is not initialized. Check logs for details.")
-        return
-    
-    symbol = symbol.upper()
-    if not symbol.endswith('USDT'):
-        symbol = f"{symbol}USDT"
-    
-    valid_intervals = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w', '1M']
-    if interval not in valid_intervals or higher_tf not in valid_intervals:
-        await ctx.send(f"Invalid interval. Please use one of: {', '.join(valid_intervals)}")
-        return
-    
-    await ctx.send(f"Analyzing {symbol} with dual timeframe MACD+RSI strategy ({interval} + {higher_tf})...")
-    
-    try:
-        # Get data for both timeframes
-        df = trading_bot.get_market_data(symbol, interval, limit=100)
-        higher_tf_data = trading_bot.get_market_data(symbol, higher_tf, limit=100)
-        
-        if df is None or higher_tf_data is None:
-            await ctx.send(f"Failed to get market data for {symbol}.")
-            return
-        
-        # Get the indicator
-        factory = IndicatorFactory()
-        indicator = factory.get_indicator('dual_macd_rsi')
-        
-        # Run analysis
-        result = indicator.get_signal(df, higher_tf_data)
-        
-        if result is None:
-            await ctx.send(f"Failed to analyze {symbol} with dual timeframe strategy.")
-            return
-        
-        # Get the latest signal
-        latest = result.iloc[-1]
-        signal_value = latest['signal']
-        
-        # Prepare response
-        response = f"**Dual Timeframe MACD+RSI Analysis for {symbol}**\n"
-        response += f"• Timeframes: {interval} + {higher_tf}\n"
-        response += f"• RSI: {latest['rsi']:.2f}\n"
-        response += f"• MACD: {latest['macd']:.6f}\n"
-        response += f"• Signal Line: {latest['signal_line']:.6f}\n"
-        response += f"• Histogram: {latest['histogram']:.6f}\n"
-        
-        if signal_value == 1.0:
-            response += f"• **Signal: BUY** 🟢\n"
-            
-            # Calculate entry, take profit and stop loss
-            current_price = float(trading_bot.get_price(symbol))
-            atr = df['high'].rolling(14).max() - df['low'].rolling(14).min()
-            last_atr = atr.iloc[-1]
-            
-            stop_loss = current_price - (last_atr * 1.5)
-            take_profit = current_price + (last_atr * 3.0)
-            
-            response += f"• Entry: {current_price:.4f}\n"
-            response += f"• Take Profit: {take_profit:.4f}\n"
-            response += f"• Stop Loss: {stop_loss:.4f}\n"
-            response += f"• Risk/Reward: 1:2\n"
-            
-        elif signal_value == -1.0:
-            response += f"• **Signal: SELL** 🔴\n"
-        else:
-            response += f"• **Signal: NEUTRAL** ⚪\n"
-            
-        await ctx.send(response)
-        
-        # Generate chart with indicators
-        chart_data = trading_bot.generate_chart(symbol, interval, limit=100, with_indicators=True)
-        if chart_data:
-            await ctx.send(file=File(chart_data, filename=f"{symbol}_{interval}_analysis.png"))
-            
-    except Exception as e:
-        logger.error(f"Error in dual_macd_rsi command: {str(e)}")
-        await ctx.send(f"An error occurred while analyzing {symbol}: {str(e)}")
+# Legacy dual_macd_rsi command - this has been moved to analysis_commands.py cog
+# This command is now maintained there instead.
 
 @bot.command(name='exchanges')
 async def list_exchanges(ctx):
@@ -1960,54 +1739,96 @@ async def detect_market_regime(ctx, symbol: str, timeframe: str = '1h'):
 @bot.command(name='position_size_advanced')
 @cooldown(1, 10, BucketType.user)
 async def advanced_position_size(ctx, symbol: str, account_balance: float = 1000.0, risk_percent: float = 2.0):
-    """
-    Calculate optimal position size using dynamic risk management.
-    
-    Parameters:
-    - symbol: The cryptocurrency symbol (e.g., BTC, ETH)
-    - account_balance: Your account balance in USDT (default: 1000.0)
-    - risk_percent: Risk percentage (default: 2.0)
-    """
-    if not optimization_manager:
-        await ctx.send("Optimization manager is not initialized. Check logs for details.")
+    """Advanced position sizing based on volatility and account risk. TODO: Refactor with RiskManager."""
+    if not bot.exchange_client or not bot.risk_manager or not bot.indicators:
+        await ctx.send("Required trading components (client, risk manager, or indicators) not available.")
         return
+
+    await ctx.defer()
     
     try:
-        # Format symbol
-        symbol = symbol.upper()
-        if not symbol.endswith('/USDT'):
-            symbol = f"{symbol}/USDT"
+        target_symbol = symbol.upper().replace('/', '')
+        # Fetch current price and historical data for ATR
+        # current_price_data = await trading_bot.client.get_price(target_symbol) # OLD
+        current_price_data = await bot.exchange_client.get_price(target_symbol) # UPDATED
         
-        # Send initial message
-        status_msg = await ctx.send(f"⏳ Calculating optimal position size for {symbol} with {risk_percent}% risk...")
+        current_price = None
+        if isinstance(current_price_data, dict) and 'last' in current_price_data:
+            current_price = current_price_data['last']
+        elif isinstance(current_price_data, (float, int)):
+            current_price = current_price_data
+
+        if current_price is None:
+            await ctx.followup.send(f"Could not fetch current price for {target_symbol}.")
+            return
+
+        # ohlcv = await trading_bot.client.fetch_ohlcv(target_symbol, timeframe='1h', limit=100) # OLD
+        ohlcv = await bot.exchange_client.fetch_ohlcv(target_symbol, timeframe='1h', limit=100) # UPDATED (timeframe can be parameter)
+        if not ohlcv:
+            await ctx.followup.send(f"Could not fetch OHLCV data for {target_symbol} to calculate volatility.")
+            return
+            
+        import pandas as pd # Ensure pandas is imported if not already at top level of file where this is run
+        df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
         
-        # Calculate position size with advanced risk management
-        position = optimization_manager.calculate_position_size(symbol, account_balance, risk_percent)
+        # atr_result = trading_bot.indicators.calculate_atr(df) # OLD - Assuming indicators was part of old trading_bot
+        atr_result = bot.indicators.calculate_atr(df) # UPDATED - bot.indicators is TechnicalIndicators
         
-        # Format results
-        embed = discord.Embed(title=f"Advanced Position Size: {symbol}", color=0x00ff00)
+        if atr_result.signal == 'ERROR' or not atr_result.metadata or 'current_value' not in atr_result.metadata:
+            await ctx.followup.send(f"Could not calculate ATR for {target_symbol}.")
+            return
         
-        if 'error' in position:
-            embed.color = 0xff0000  # Red for error
-            embed.add_field(name="Error", value=position['error'], inline=False)
+        atr_value = atr_result.metadata['current_value']
+        
+        # position_size = trading_bot.risk_manager.calculate_dynamic_position_size( # OLD
+        # account_balance=account_balance,
+        # risk_percent=risk_percent / 100, # Convert to decimal
+        # entry_price=current_price,
+        # volatility=atr_value, # Use ATR as measure of volatility
+        # price_per_pip_or_tick=0.01 # Example, might need adjustment per symbol
+        # )
+        # Using RiskManager's method directly. The old one might have been on TradingBot.
+        # This assumes RiskManager has such a method. src/trading/risk_manager.py has DynamicRiskManager
+        # DynamicRiskManager does not have calculate_dynamic_position_size. It has calculate_position_size based on fixed % or kelly.
+        # This needs to be mapped to available RiskManager methods.
+        # For now, using a simplified calculation based on fixed risk:
+        stop_loss_distance_atr_multiples = 2 # Example: SL is 2 * ATR away
+        stop_loss_price = current_price - (atr_value * stop_loss_distance_atr_multiples) # For a long
+        
+        if stop_loss_price >= current_price : # Should not happen for long
+             await ctx.followup.send(f"Calculated stop loss ({stop_loss_price}) is not valid against entry ({current_price}). Cannot calculate position size.")
+             return
+
+        # position_size_coins = bot.risk_manager.calculate_position_size( # Needs to exist on RiskManager
+        # account_balance=account_balance,
+        # risk_per_trade_percent=risk_percent / 100,
+        # entry_price=current_price,
+        # stop_loss_price=stop_loss_price,
+        # symbol=target_symbol
+        # )
+        
+        # Simplified calculation if direct method is not available:
+        risk_amount_per_trade = account_balance * (risk_percent / 100.0)
+        amount_to_risk_per_coin = current_price - stop_loss_price
+        if amount_to_risk_per_coin <= 0:
+            position_size_coins = 0
+            await ctx.followup.send(f"Risk per coin is zero or negative. Cannot determine position size based on ATR stop loss.")
         else:
-            # Add position details
-            embed.add_field(name="Account Balance", value=f"${account_balance:.2f}", inline=True)
-            embed.add_field(name="Risk Percentage", value=f"{position['risk_percent']:.2f}%", inline=True)
-            embed.add_field(name="Risk Amount", value=f"${position['risk_amount']:.2f}", inline=True)
-            
-            embed.add_field(name="Current Price", value=f"${position['current_price']:.2f}", inline=True)
-            embed.add_field(name="Entry Price", value=f"${position['entry_price']:.2f}", inline=True)
-            
-            embed.add_field(name="Stop Loss", value=f"${position['stop_loss']:.2f}", inline=True)
-            embed.add_field(name="Take Profit", value=f"${position['take_profit']:.2f}", inline=True)
-            embed.add_field(name="Risk/Reward Ratio", value=f"{position['risk_reward']:.2f}", inline=True)
-            
-            embed.add_field(name="Position Size", value=f"{position['size']:.6f} {symbol.split('/')[0]}", inline=False)
-            embed.add_field(name="Position Value", value=f"${position['value']:.2f}", inline=True)
-            
-            embed.add_field(name="Signal", value=position['signal'], inline=True)
-        
+            position_size_coins = risk_amount_per_trade / amount_to_risk_per_coin
+
+        embed = discord.Embed(title=f"Advanced Position Size for {target_symbol}", color=0x1E90FF)
+        embed.add_field(name="Account Balance", value=f"${account_balance:.2f}", inline=True)
+        embed.add_field(name="Risk Percentage", value=f"{risk_percent:.2f}%", inline=True)
+        embed.add_field(name="Risk Amount", value=f"${risk_amount_per_trade:.2f}", inline=True)
+        embed.add_field(name="Current Price", value=f"${current_price:.2f}", inline=True)
+        embed.add_field(name="Entry Price", value=f"${current_price:.2f}", inline=True)
+        embed.add_field(name="Stop Loss", value=f"${stop_loss_price:.2f}", inline=True)
+        embed.add_field(name="Take Profit", value=f"${current_price + (current_price * float(ratio.strip('%')) / 100):.2f}", inline=True)
+        embed.add_field(name="Risk/Reward Ratio", value=f"{risk_percent:.2f}:1", inline=True)
+        embed.add_field(name="Position Size", value=f"{position_size_coins:.6f} {symbol.split('/')[0]}", inline=False)
+        embed.add_field(name="Position Value", value=f"${position_size_coins * current_price:.2f}", inline=True)
+        embed.add_field(name="Signal", value=f"{status} {ratio}", inline=True)
+        embed.add_field(name="Imminent Entry", value=f"{imminent}", inline=True)
         embed.set_footer(text=f"Calculated by {ctx.author.display_name} | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         
         # Edit the message with results
@@ -2110,98 +1931,42 @@ async def slash_info(ctx):
 
 @bot.command(name='debug_price')
 async def debug_price_responses(ctx, symbol: str = "BTC"):
-    """Debug command to track price response sources"""
-    if not ctx.author.guild_permissions.administrator:
-        await ctx.send("❌ This command requires administrator permissions.")
+    """Test and debug price responses from exchange client."""
+    if not bot.exchange_client:
+        await ctx.send("Exchange client not initialized.")
         return
-    
+
+    target_symbol = symbol.upper()
+    if "/" not in target_symbol:
+        target_symbol += "/USDT" # Assuming default pair
+
+    await ctx.send(f"Fetching price for {target_symbol} using `bot.exchange_client.get_price()`...")
     try:
-        embed = discord.Embed(
-            title="🔍 Price Command Debug Information",
-            description=f"Checking for duplicate response sources for {symbol}",
-            color=0x0099ff,
-            timestamp=datetime.now()
-        )
-        
-        # Add bot information
-        embed.add_field(
-            name="🤖 Bot Information",
-            value=f"**Bot ID:** {bot.user.id}\n"
-                  f"**Bot Name:** {bot.user.display_name}\n"
-                  f"**Bot Status:** {'Online' if not bot.is_closed() else 'Offline'}",
-            inline=False
-        )
-        
-        # Check for registered commands
-        price_commands = []
-        for command in bot.commands:
-            if 'price' in command.name.lower():
-                price_commands.append(f"• `{discord_config.command_prefix}{command.name}`")
-        
-        # Check for slash commands
-        slash_commands = []
-        for command in bot.tree.get_commands():
-            if 'price' in command.name.lower():
-                slash_commands.append(f"• `/{command.name}`")
-        
-        embed.add_field(
-            name="📝 Registered Price Commands",
-            value="\n".join(price_commands) if price_commands else "None found",
-            inline=True
-        )
-        
-        embed.add_field(
-            name="⚡ Registered Slash Commands",
-            value="\n".join(slash_commands) if slash_commands else "None found",
-            inline=True
-        )
-        
-        # Check for loaded extensions/cogs
-        loaded_cogs = []
-        for cog_name, cog in bot.cogs.items():
-            loaded_cogs.append(f"• {cog_name}")
-        
-        embed.add_field(
-            name="🔧 Loaded Cogs",
-            value="\n".join(loaded_cogs[:10]) if loaded_cogs else "None loaded",
-            inline=False
-        )
-        
-        # Add warnings
-        warnings = []
-        if len(price_commands) > 1:
-            warnings.append("⚠️ Multiple prefix price commands detected")
-        if len(slash_commands) > 1:
-            warnings.append("⚠️ Multiple slash price commands detected")
-        
-        if warnings:
-            embed.add_field(
-                name="⚠️ Potential Issues",
-                value="\n".join(warnings),
-                inline=False
-            )
-        
-        embed.add_field(
-            name="💡 Recommendation",
-            value="If you see duplicate responses:\n"
-                  "1. Check for other bot instances\n"
-                  "2. Verify no webhooks are responding\n"
-                  "3. Check Discord application commands\n"
-                  "4. Look for console output being redirected",
-            inline=False
-        )
-        
-        embed.set_footer(text=f"Debug run by {ctx.author.display_name}")
-        
-        await ctx.send(embed=embed)
-        
+        # price_data = await trading_bot.client.get_price(target_symbol) # OLD
+        price_data = await bot.exchange_client.get_price(target_symbol) # UPDATED
+        await ctx.send(f"Raw response from `get_price({target_symbol})`:\n```json\n{json.dumps(price_data, indent=2)}\n```")
     except Exception as e:
-        logger.error(f"Error in debug_price command: {e}")
+        await ctx.send(f"Error calling `get_price({target_symbol})`: {e}")
+
+    await ctx.send(f"Fetching ticker for {target_symbol} using `bot.exchange_client.fetch_ticker()`...")
+    try:
+        # ticker_data = await trading_bot.client.fetch_ticker(target_symbol) # OLD
+        ticker_data = await bot.exchange_client.fetch_ticker(target_symbol) # UPDATED
+        await ctx.send(f"Raw response from `fetch_ticker({target_symbol})`:\n```json\n{json.dumps(ticker_data, indent=2)}\n```")
+    except Exception as e:
+        logger.error(f"Error calling `fetch_ticker({target_symbol})`: {e}")
         await ctx.send(f"❌ Error running debug: {str(e)}")
 
 def run_bot():
     """Run the Discord bot"""
-    bot.run(token)
+    if token:
+        try:
+            # bot.run(token) # OLD - TradingBotCore might have its own run method or expect this.
+            # TradingBotCore is a commands.Bot, so bot.run(token) is correct.
+            # The create_bot() function returns an instance of TradingBotCore.
+            bot.run(token)
+        except discord.errors.LoginFailure:
+            logger.error("Failed to log in: Improper token has been passed.")
 
 if __name__ == "__main__":
     run_bot()    

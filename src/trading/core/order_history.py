@@ -36,4 +36,4 @@ class OrderHistory:
         return list(self.orders)
 
     def get_last_orders(self, limit: int = 10) -> List[OrderRecord]:
-        return self.orders[-limit:]
+        return self.orders[-limit:] 

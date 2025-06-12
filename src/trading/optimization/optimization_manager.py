@@ -7,11 +7,11 @@ import os
 from datetime import datetime
 from typing import Dict, List, Any, Optional, Union, Callable
 
-from src.trading.parameter_optimizer import ParameterOptimizer
-from src.trading.multi_indicator_strategy import MultiIndicatorStrategy
-from src.trading.genetic_optimizer import GeneticOptimizer
-from src.trading.ml_optimizer import MLOptimizer
-from src.trading.risk_manager import DynamicRiskManager
+from .parameter_optimizer import ParameterOptimizer
+from src.trading.strategies import MultiIndicatorStrategy
+from .genetic_optimizer import GeneticOptimizer
+from .ml_optimizer import MLOptimizer
+from src.trading.core.risk_manager import DynamicRiskManager
 from src.utils.performance import PerformanceTracker
 
 logger = logging.getLogger(__name__)

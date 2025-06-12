@@ -12,7 +12,7 @@ from dataclasses import dataclass
 import time
 from datetime import datetime, timedelta
 from src.config.config_loader import get_config
-from .order_history import OrderHistory
+from src.trading.core.order_history import OrderHistory
 import os
 
 logger = logging.getLogger(__name__)
@@ -45,7 +45,7 @@ class ExchangeClient:
     Includes rate limiting, retry logic, and comprehensive error handling
     """
     
-    def __init__(self, exchange_name: str = None, sandbox: bool = True, config=None, order_history: OrderHistory | None = None):
+    def __init__(self, exchange_name: str = None, sandbox: bool = True, config=None, order_history: Optional[OrderHistory] = None):
         self.config = config or get_config()
         self.exchange_name = exchange_name or self.config.exchange.name
         self.sandbox = sandbox or self.config.exchange.sandbox

@@ -321,7 +321,7 @@ class SlashCommands(commands.Cog):
             except Exception as followup_error:
                 logger.error(f"Failed to send error followup: {followup_error}")
     
-    @app_commands.command(name="stats", description="Get bot statistics and status")
+    @app_commands.command(name="bot_stats", description="Get bot statistics and status")
     async def stats_slash(self, interaction: discord.Interaction):
         """Get bot statistics using slash command"""
         # Safety check to prevent double acknowledgment
@@ -412,7 +412,7 @@ class SlashCommands(commands.Cog):
             except Exception as followup_error:
                 logger.error(f"Failed to send error followup: {followup_error}")
     
-    @app_commands.command(name="help", description="Get help information for the trading bot")
+    @app_commands.command(name="bot_help", description="Get help information for the trading bot")
     async def help_slash(self, interaction: discord.Interaction):
         """Display help information using slash command"""
         # Safety check to prevent double acknowledgment
@@ -444,8 +444,8 @@ class SlashCommands(commands.Cog):
             slash_commands = (
                 "`/price <symbol>` - Get current cryptocurrency price\n"
                 "`/signal <symbol>` - Generate a trading signal\n"
-                "`/stats` - View bot statistics and status\n"
-                "`/help` - Show this help message"
+                "`/bot_stats` - View bot statistics and status\n"
+                "`/bot_help` - Show this help message"
             )
             embed.add_field(
                 name="🔗 Slash Commands",
@@ -457,7 +457,7 @@ class SlashCommands(commands.Cog):
             prefix_commands = (
                 "`/market_signals` - Generate multiple market signals\n"
                 "`/live_signal` - Send live trading signal\n"
-                "`/health` - Check bot health status\n"
+                "`/bot_health` - Check bot health status\n"
                 "`/optimize_params` - Optimize strategy parameters"
             )
             embed.add_field(
@@ -509,4 +509,4 @@ class SlashCommands(commands.Cog):
 async def setup(bot):
     """Setup function to load the cog"""
     await bot.add_cog(SlashCommands(bot))
-    logger.info("SlashCommands cog loaded successfully") 
+    logger.info("SlashCommands cog loaded successfully")
