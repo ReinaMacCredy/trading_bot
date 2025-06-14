@@ -172,7 +172,7 @@ from web.models.signal_dto import TradingViewSignal
 
 router = APIRouter()
 
-@router.post("/webhook")
+@router.post("/tradingview")
 async def receive_signal(signal: TradingViewSignal):
     print("📥 Đã nhận tín hiệu từ TradingView:", signal.dict())
     return {"status": "received", "data": signal.dict()}

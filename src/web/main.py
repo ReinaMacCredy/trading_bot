@@ -142,13 +142,14 @@
 #     run_server() 
 
 
-
 from fastapi import FastAPI
+
+from dependencies import lifespan
 from web.api import webhooks, orders
 
-app = FastAPI(title="Trading System API")
+app = FastAPI(title="Trading System API", lifespan=lifespan)
 
-app.include_router(webhooks.router, prefix="/api")
+app.include_router(webhooks.router, prefix="/webhook")
 app.include_router(orders.router, prefix="/api")
 
 @app.get("/")
