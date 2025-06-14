@@ -5,3 +5,5 @@ class TradingViewSignal(BaseModel):
     price: float
     action: str  # "buy" hoặc "sell"
     strategy: str | None = None
+
+__all__ = ["TradingViewSignal"]

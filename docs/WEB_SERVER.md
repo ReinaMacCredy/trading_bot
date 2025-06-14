@@ -27,6 +27,7 @@ The system follows a microservices pattern with the following components:
 ## Features
 
 ### 🌐 HTTPS/HTTP Server
+
 - **FastAPI-based web server** with automatic API documentation
 - **SSL/TLS support** for secure communications
 - **CORS-enabled** for web frontend integration
@@ -35,6 +36,7 @@ The system follows a microservices pattern with the following components:
 - **Async processing** for optimal performance
 
 ### 📡 TradingView Integration
+
 - **Webhook endpoint** for real-time TradingView alerts
 - **Signal validation** and processing with format checking
 - **Support for custom indicators** and multiple strategies
@@ -42,6 +44,7 @@ The system follows a microservices pattern with the following components:
 - **Webhook signature verification** for enhanced security
 
 ### 📋 Order Management System
+
 - **Web-based order creation** with full parameter control
 - **Redis-powered order queuing** with persistent storage
 - **Multi-queue architecture** (pending, matched, executed, failed)
@@ -49,6 +52,7 @@ The system follows a microservices pattern with the following components:
 - **User-specific order management** with history tracking
 
 ### 🔄 Intelligent Order Matching
+
 - **Automatic matching** of orders against TradingView signals
 - **Conditional execution** based on market conditions
 - **Symbol and strategy matching** with intelligent routing
@@ -56,6 +60,7 @@ The system follows a microservices pattern with the following components:
 - **Background processing** with configurable intervals
 
 ### 📊 Order Types Support
+
 - **Market Orders**: Immediate execution at current market price
 - **Limit Orders**: Price-conditional execution with monitoring
 - **Stop Orders**: Stop-loss and take-profit automation
@@ -64,12 +69,14 @@ The system follows a microservices pattern with the following components:
 ## Quick Start
 
 ### 1. Install Dependencies
+
 ```bash
 # Install required packages
 pip install -r requirements.txt
 ```
 
 ### 2. Configure Redis
+
 ```bash
 # Option 1: Install locally
 sudo apt-get install redis-server  # Ubuntu/Debian
@@ -83,6 +90,7 @@ redis-server
 ```
 
 ### 3. Configure Environment
+
 ```bash
 # Copy example configuration
 cp config/web_config.yaml.example config/web_config.yaml
@@ -97,6 +105,7 @@ export WEB_SERVER_PORT=8000
 ```
 
 ### 4. Run Server
+
 ```bash
 # HTTP mode (development)
 python web_server.py --host 0.0.0.0 --port 8000
@@ -112,6 +121,7 @@ python web_server.py --host 0.0.0.0 --port 8000 \
 ```
 
 ### 5. Verify Installation
+
 ```bash
 # Check server health
 curl http://localhost:8000/status/health
@@ -126,18 +136,21 @@ curl http://localhost:8000/status/redis
 ## API Endpoints
 
 ### 🔐 Health & Status
+
 - **GET /status/health** - Server health check
 - **GET /status/redis** - Redis connection status
 - **GET /status/trading** - Trading service status
 - **GET /status/all** - Comprehensive system status
 
 ### 📡 TradingView Webhooks
+
 - **POST /webhooks/tradingview** - Receive TradingView alerts
   - Validates webhook signature
   - Processes signal data
   - Triggers order matching
 
 ### 📋 Order Management
+
 - **POST /orders/create** - Create new order
 - **GET /orders/status/{order_id}** - Get order status
 - **PUT /orders/cancel/{order_id}** - Cancel pending order
@@ -145,6 +158,7 @@ curl http://localhost:8000/status/redis
 - **GET /orders/queue/stats** - Queue statistics
 
 ### 📊 Queue Management
+
 - **GET /orders/queue/pending** - View pending orders
 - **GET /orders/queue/matched** - View matched orders
 - **GET /orders/queue/executed** - View executed orders
@@ -153,12 +167,13 @@ curl http://localhost:8000/status/redis
 ## Configuration
 
 ### Web Server Configuration (config/web_config.yaml)
+
 ```yaml
 web_server:
   host: "0.0.0.0"
   port: 8000
-  ssl_certfile: null  # Path to SSL certificate
-  ssl_keyfile: null   # Path to SSL private key
+  ssl_certfile: null # Path to SSL certificate
+  ssl_keyfile: null # Path to SSL private key
   cors_origins:
     - "http://localhost:3000"
     - "https://yourdomain.com"
@@ -172,23 +187,24 @@ redis:
   connection_pool_size: 10
 
 tradingview:
-  webhook_secret: null  # Set via TRADINGVIEW_WEBHOOK_SECRET
-  allowed_strategies: 
+  webhook_secret: null # Set via TRADINGVIEW_WEBHOOK_SECRET
+  allowed_strategies:
     - "MACD_RSI"
     - "EMA_CROSSOVER"
     - "CUSTOM_STRATEGY"
   rate_limit:
     max_requests: 100
-    time_window: 3600  # 1 hour
+    time_window: 3600 # 1 hour
 
 order_matching:
-  loop_interval: 1.0      # Check interval in seconds
-  batch_size: 50          # Orders processed per batch
-  max_execution_time: 30  # Max execution time per order
-  retry_attempts: 3       # Retry failed orders
+  loop_interval: 1.0 # Check interval in seconds
+  batch_size: 50 # Orders processed per batch
+  max_execution_time: 30 # Max execution time per order
+  retry_attempts: 3 # Retry failed orders
 ```
 
 ### Environment Variables
+
 ```bash
 # Web Server Configuration
 WEB_SERVER_HOST=0.0.0.0
@@ -214,6 +230,7 @@ ENABLE_PAPER_TRADING=false
 ## Order Flow
 
 ### 1. TradingView Signal Processing
+
 ```mermaid
 graph TD
     A[TradingView Alert] --> B[Webhook Received]
@@ -224,6 +241,7 @@ graph TD
 ```
 
 ### 2. Order Matching Process
+
 ```mermaid
 graph TD
     A[Background Loop] --> B[Fetch Pending Orders]
@@ -239,6 +257,7 @@ graph TD
 ## Order Management
 
 ### Creating Orders
+
 ```python
 # Example order creation
 order_data = {
@@ -262,6 +281,7 @@ response = requests.post(
 ```
 
 ### Order States
+
 - **pending**: Order created, waiting for conditions
 - **matched**: Matched against signal, awaiting execution
 - **executed**: Successfully executed on exchange
@@ -273,12 +293,14 @@ response = requests.post(
 The web server integrates seamlessly with the Discord bot through:
 
 ### Shared Trading Infrastructure
+
 - **Common exchange clients** for unified market access
 - **Shared configuration system** for consistent settings
 - **Unified risk management** across both interfaces
 - **Common notification system** for trade updates
 
 ### Data Synchronization
+
 - **Redis-based communication** for real-time data sharing
 - **Order status updates** reflected in Discord notifications
 - **Signal history** accessible from both interfaces
@@ -287,6 +309,7 @@ The web server integrates seamlessly with the Discord bot through:
 ## Production Deployment
 
 ### Docker Deployment
+
 ```bash
 # Navigate to deployment directory
 cd deployment
@@ -299,6 +322,7 @@ docker compose -f docker-compose.prod.yml up -d
 ```
 
 ### VPS Deployment
+
 ```bash
 # Clone repository
 git clone https://github.com/ReinaMacCredy/trading_bot.git
@@ -321,6 +345,7 @@ python web_server.py --host 0.0.0.0 --port 8000
 ```
 
 ### SSL Certificate Setup
+
 ```bash
 # Using Let's Encrypt (recommended)
 sudo apt-get install certbot
@@ -335,6 +360,7 @@ python web_server.py \
 ## Monitoring & Maintenance
 
 ### Health Monitoring
+
 ```bash
 # Check all services
 curl http://localhost:8000/status/all
@@ -347,12 +373,14 @@ curl http://localhost:8000/orders/queue/stats
 ```
 
 ### Log Files
+
 - **Web server logs**: `logs/web_server.log`
 - **Order matching logs**: `logs/order_matching.log`
 - **Redis logs**: System Redis logs
 - **Trading logs**: `logs/trading.log`
 
 ### Performance Metrics
+
 - **Order processing time**: Average time from signal to execution
 - **Queue depth**: Number of pending orders
 - **Success rate**: Percentage of successful order executions
@@ -363,6 +391,7 @@ curl http://localhost:8000/orders/queue/stats
 ### Common Issues
 
 #### Redis Connection Error
+
 ```bash
 # Check Redis status
 redis-cli ping
@@ -375,6 +404,7 @@ sudo ufw allow 6379
 ```
 
 #### SSL Certificate Issues
+
 ```bash
 # Verify certificate
 openssl x509 -in cert.pem -text -noout
@@ -384,12 +414,14 @@ openssl rsa -in key.pem -check
 ```
 
 #### Webhook Not Receiving
+
 - Verify TradingView webhook URL
 - Check firewall settings (port 8000)
 - Validate webhook secret configuration
 - Review server logs for errors
 
 ### Performance Optimization
+
 - **Redis memory optimization**: Use appropriate Redis configuration
 - **Order batch processing**: Adjust batch_size in configuration
 - **Connection pooling**: Configure Redis connection pool
@@ -398,12 +430,14 @@ openssl rsa -in key.pem -check
 ## Security Considerations
 
 ### Webhook Security
+
 - **Signature verification** for TradingView webhooks
 - **HTTPS enforcement** for production deployments
 - **Rate limiting** to prevent abuse
 - **Input validation** for all API endpoints
 
 ### Data Protection
+
 - **Redis AUTH** for database security
 - **Environment variables** for sensitive configuration
 - **API key encryption** in storage

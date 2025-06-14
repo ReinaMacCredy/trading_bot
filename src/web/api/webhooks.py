@@ -167,7 +167,6 @@
 #     } 
 
 
-
 from fastapi import APIRouter
 from web.models.signal_dto import TradingViewSignal
 

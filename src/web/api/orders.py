@@ -250,24 +250,16 @@
 #             ) 
 
 
-
-# src/api/orders.py
-# ------------------------------------------
-# API endpoint POST /api/lenh
-# Nhận lệnh giao dịch dạng JSON (LenhDTO)
-# ------------------------------------------
-
-
 from fastapi import APIRouter, HTTPException
-from web.models.lenh_dto import LenhDTO
+from src.web.models.order_dto import OrderDTO
 
 router = APIRouter()
 
 @router.post("/lenh")
-async def receive_order(lenh: LenhDTO):
-    if lenh.giaTren <= lenh.giaDuoi:
+async def receive_order(order: OrderDTO):
+    if order.topPrice <= order.bottomPrice:
         raise HTTPException(status_code=400, detail="Giá trên phải lớn hơn giá dưới")
     
-    print(f"📥 Nhận lệnh từ UI: {lenh}")
-    return {"status": "queued", "lenh": lenh.dict()}
+    print(f"📥 Nhận lệnh từ UI: {order}")
+    return {"status": "queued", "order": order.dict()}
 

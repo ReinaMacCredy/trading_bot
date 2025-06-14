@@ -1,14 +1,8 @@
-# src/services/order_service.py
-# ------------------------------------------
-# Dịch vụ xử lý khi nhận lệnh
-# Có thể mở rộng để: lưu DB, gửi Telegram/Discord...
-# ------------------------------------------
-
-async def process_order(lenh):
-    print("[LỆNH NHẬN]", lenh)
+async def process_order(order):
+    print("[LỆNH NHẬN]", order)
 
     return {
         "status": "success",
-        "message": f"Lệnh {lenh.ten} ({'MUA' if lenh.hanhDong else 'BÁN'}) {lenh.symbol} đã nhận",
-        "data": lenh.dict()
+        "message": f"Lệnh {order.name} ({'MUA' if order.action else 'BÁN'}) {order.symbol} đã nhận",
+        "data": order.dict()
     }
