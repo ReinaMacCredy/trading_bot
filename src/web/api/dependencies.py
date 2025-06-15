@@ -1,6 +1,6 @@
 from functools import lru_cache
 from src.trading.clients.mt5_client import MT5Client
-from src.trading.core.legacy_trading import TradeExecutor
+from src.web.architecture.trade_executor import TradeExecutor
 from src.web.api.services import OrderService, PositionService
 
 @lru_cache()

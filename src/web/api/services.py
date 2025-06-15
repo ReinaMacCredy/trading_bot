@@ -1,6 +1,6 @@
 from typing import List, Dict, Any, Optional
 from src.trading.clients.mt5_client import MT5Client
-from src.trading.core.legacy_trading import TradeExecutor
+from src.web.architecture.trade_executor import TradeExecutor
 
 class OrderService:
     def __init__(self, mt5_client: MT5Client):
@@ -69,4 +69,7 @@ class PositionService:
         """Close a position"""
         positions = await self.mt5_client.fetch_positions(symbol)
         for position in positions:
-            await self.mt5_client.close_position(position['ticket']) 
+            await self.mt5_client.close_position(position['ticket'])
+
+def get_trade_executor():
+    return TradeExecutor(mt5_client=get_mt5_client()) 

@@ -1,6 +1,6 @@
 from typing import Dict, Any
 import logging
-from src.architecture.signal_processor import SignalProcessor
+from src.web.architecture.signal_processor import SignalProcessor
 from src.web.middleware import ValidationError
 
 logger = logging.getLogger(__name__)

@@ -1,6 +1,6 @@
 from typing import Dict, Any, List, Optional
 import logging
-from src.trading.core.legacy_trading import TradeExecutor
+from src.web.architecture.trade_executor import TradeExecutor
 from src.web.middleware import ValidationError, NotFoundError
 
 logger = logging.getLogger(__name__)

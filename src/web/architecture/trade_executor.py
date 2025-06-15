@@ -1,9 +1,9 @@
 import logging
 from typing import Dict, Optional
 from datetime import datetime
-from src.architecture.event_broker import Signal, EventBroker
+from src.web.architecture.event_broker import Signal, EventBroker
 from src.trading.services.order_executor import OrderExecutor
-from src.web.models.order_dto import OrderDTO
+from src.web.api.models import Order
 from src.trading.clients.mt5_client import MT5Client
 
 logger = logging.getLogger(__name__)
