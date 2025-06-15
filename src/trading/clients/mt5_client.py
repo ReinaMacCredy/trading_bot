@@ -6,6 +6,9 @@ Note: This requires MetaTrader5 Python package and MT5 terminal installed
 Installation: pip install MetaTrader5
 """
 
+# pyright: reportAttributeAccessIssue=false
+
+import MetaTrader5 as mt5
 import logging
 import pandas as pd
 import numpy as np
@@ -489,7 +492,7 @@ class MT5Client:
                 error_message=str(e)
             )
     
-    async def fetch_open_orders(self, symbol: str = None) -> List[Dict]:
+    async def fetch_open_orders(self, symbol: str = None) -> List[Dict]: # type: ignore
         """
         Fetch open orders
         
@@ -528,7 +531,7 @@ class MT5Client:
             logger.error(f"Error fetching MT5 open orders: {e}")
             return []
     
-    async def fetch_positions(self, symbol: str = None) -> List[Dict]:
+    async def fetch_positions(self, symbol: str = None) -> List[Dict]: # type: ignore
         """
         Fetch open positions
         
@@ -568,7 +571,7 @@ class MT5Client:
             logger.error(f"Error fetching MT5 positions: {e}")
             return []
     
-    async def close_position(self, ticket: int, volume: float = None) -> MT5OrderResult:
+    async def close_position(self, ticket: int, volume: float = None) -> MT5OrderResult: # type: ignore
         """
         Close an open position
         

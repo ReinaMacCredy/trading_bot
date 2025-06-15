@@ -1,75 +1,101 @@
 #!/usr/bin/env python3
 """
-HTTPS Trading Server Entry Point
-Standalone server for TradingView webhooks and web trading
+Trading Bot Web Server
+Entry point for running the FastAPI application with SSL support
 """
-import sys
-import os
+
 import argparse
+import uvicorn
 import logging
 from pathlib import Path
+import ssl
 
-# Add src to Python path
-sys.path.insert(0, str(Path(__file__).parent / "src"))
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
-from src.web.main import run_server
-from src.config.config_loader import ConfigLoader
-
-def setup_logging():
-    """Setup logging configuration"""
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.StreamHandler(),
-            logging.FileHandler('logs/web_server.log', encoding='utf-8')
-        ]
+def parse_args():
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(description="Trading Bot Web Server")
+    parser.add_argument(
+        "--host",
+        default="0.0.0.0",
+        help="Host to bind the server to"
     )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="Port to bind the server to"
+    )
+    parser.add_argument(
+        "--ssl-cert",
+        help="Path to SSL certificate file"
+    )
+    parser.add_argument(
+        "--ssl-key",
+        help="Path to SSL key file"
+    )
+    parser.add_argument(
+        "--config",
+        default="config.yaml",
+        help="Path to configuration file"
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug mode"
+    )
+    return parser.parse_args()
+
+def validate_ssl_config(args):
+    """Validate SSL configuration"""
+    if args.ssl_cert or args.ssl_key:
+        if not (args.ssl_cert and args.ssl_key):
+            raise ValueError("Both SSL certificate and key must be provided")
+        
+        cert_path = Path(args.ssl_cert)
+        key_path = Path(args.ssl_key)
+        
+        if not cert_path.exists():
+            raise FileNotFoundError(f"SSL certificate not found: {args.ssl_cert}")
+        if not key_path.exists():
+            raise FileNotFoundError(f"SSL key not found: {args.ssl_key}")
+            
+        return True
+    return False
 
 def main():
     """Main entry point"""
-    parser = argparse.ArgumentParser(description='Trading HTTPS Server')
-    parser.add_argument('--host', default='0.0.0.0', help='Host to bind to')
-    parser.add_argument('--port', type=int, default=8000, help='Port to bind to')
-    parser.add_argument('--ssl-cert', help='SSL certificate file path')
-    parser.add_argument('--ssl-key', help='SSL private key file path')
-    parser.add_argument('--config', help='Configuration file path')
+    args = parse_args()
     
-    args = parser.parse_args()
+    # Configure server settings
+    server_config = {
+        "app": "src.web.server:app",
+        "host": args.host,
+        "port": args.port,
+        "reload": args.debug,
+        "workers": 1,  # Single worker for MT5 client
+        "log_level": "debug" if args.debug else "info"
+    }
     
-    # Setup logging
-    setup_logging()
-    logger = logging.getLogger(__name__)
+    # Configure SSL if enabled
+    if validate_ssl_config(args):
+        logger.info("SSL enabled")
+        server_config.update({
+            "ssl_keyfile": args.ssl_key,
+            "ssl_certfile": args.ssl_cert
+        })
     
-    # Create logs directory
-    os.makedirs('logs', exist_ok=True)
+    # Start server
+    logger.info(f"Starting server on {args.host}:{args.port}")
+    logger.info(f"SSL enabled: {validate_ssl_config(args)}")
+    logger.info(f"Debug mode: {args.debug}")
     
-    logger.info("🚀 Starting Trading HTTPS Server")
-    logger.info(f"📍 Server will bind to {args.host}:{args.port}")
-    
-    if args.ssl_cert and args.ssl_key:
-        logger.info("🔒 SSL enabled")
-    else:
-        logger.info("🌐 Running in HTTP mode (SSL disabled)")
-    
-    try:
-        # Load configuration
-        if args.config:
-            os.environ['CONFIG_PATH'] = args.config
-        
-        # Run server
-        run_server(
-            host=args.host,
-            port=args.port,
-            ssl_certfile=args.ssl_cert,
-            ssl_keyfile=args.ssl_key
-        )
-        
-    except KeyboardInterrupt:
-        logger.info("🛑 Server stopped by user")
-    except Exception as e:
-        logger.error(f"❌ Server error: {e}")
-        sys.exit(1)
+    uvicorn.run(**server_config)
 
 if __name__ == "__main__":
     main() 
