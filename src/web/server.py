@@ -3,6 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 import logging
 import uvicorn
 
+from src.web.routers import api_router
+from src.web.dependencies import life_span
+
 from src.web.config import (
     API_TITLE,
     API_DESCRIPTION,
@@ -31,7 +34,8 @@ app = FastAPI(
     openapi_tags=TAGS_METADATA,
     docs_url="/docs",  # Swagger UI
     redoc_url="/redoc",  # ReDoc UI
-    openapi_url="/openapi.json"  # OpenAPI schema
+    openapi_url="/openapi.json",  # OpenAPI schema
+    lifespan=life_span
 )
 
 # Add CORS middleware

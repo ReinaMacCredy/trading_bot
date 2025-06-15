@@ -1,9 +1,5 @@
-"""
-Use for webhooks
-"""
 from pydantic import BaseModel, Field
-from typing import Optional
-from src.web.models.enums import OrderSide, OrderType
+from src.web.models.enums import OrderSide
 
 class TradingViewSignal(BaseModel):
     symbol: str = Field(..., description="Trading symbol (e.g., BTCUSDT)")

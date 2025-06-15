@@ -1,6 +1,6 @@
 """
 Trading HTTPS Server Package
 """
-from .main import app
+from .server import app
 
-__all__ = ["app", "run_server"] 
+__all__ = ["app"] 
