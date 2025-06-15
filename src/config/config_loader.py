@@ -197,7 +197,7 @@ class ConfigLoader:
         
         try:
             # Get valid field names for the dataclass
-            valid_fields = {f.name for f in fields(cls)}
+            valid_fields = {f.name for f in fields(cls)} # type: ignore
             
             # Filter data to only include valid fields
             filtered_data = {k: v for k, v in data.items() if k in valid_fields}

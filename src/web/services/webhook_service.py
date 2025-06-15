@@ -1,7 +1,7 @@
 from typing import Dict, Any
 import logging
 from src.web.architecture.signal_processor import SignalProcessor
-from src.web.middleware import ValidationError
+from src.web.middlewares import ValidationError
 
 logger = logging.getLogger(__name__)
 

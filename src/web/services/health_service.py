@@ -2,7 +2,7 @@ from typing import Dict, Any
 from datetime import datetime
 import logging
 from src.trading.clients.mt5_client import MT5Client
-from src.web.middleware import ValidationError
+from src.web.middlewares import ValidationError
 
 logger = logging.getLogger(__name__)
 

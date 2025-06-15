@@ -39,8 +39,8 @@ class MT5OrderResult:
     side: str = ""
     volume: float = 0.0
     price: float = 0.0
-    sl: float = 0.0
-    tp: float = 0.0
+    sl: Optional[float] = None
+    tp: Optional[float] = None
     comment: str = ""
     error_code: Optional[int] = None
     error_message: Optional[str] = None
@@ -280,8 +280,7 @@ class MT5Client:
             logger.error(f"Error fetching MT5 balance: {e}")
             return None
     
-    async def place_market_order(self, symbol: str, side: str, volume: float, 
-                               sl: float = 0.0, tp: float = 0.0, comment: str = "Discord Bot") -> MT5OrderResult:
+    async def place_market_order(self, symbol: str, side: str, volume: float, sl: Optional[float] = None, tp: Optional[float] = None, comment: str = "Discord Bot") -> MT5OrderResult:
         """
         Place a market order
         
@@ -385,8 +384,7 @@ class MT5Client:
                 error_message=str(e)
             )
     
-    async def place_pending_order(self, symbol: str, side: str, volume: float, price: float,
-                                sl: float = 0.0, tp: float = 0.0, comment: str = "Discord Bot") -> MT5OrderResult:
+    async def place_pending_order(self, symbol: str, side: str, volume: float, price: float, sl: Optional[float] = None, tp: Optional[float] = None, comment: str = "Discord Bot") -> MT5OrderResult:
         """
         Place a pending order (limit/stop)
         
@@ -700,3 +698,5 @@ class MT5Client:
     def __del__(self):
         """Cleanup on destruction"""
         self.shutdown() 
+
+__all__ = ["MT5Client", "MT5OrderResult", "MT5TickerInfo"]

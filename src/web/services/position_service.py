@@ -1,15 +1,16 @@
 from typing import Dict, Any, List, Optional
 import logging
-from src.web.architecture.trade_executor import TradeExecutor
-from src.web.middleware import ValidationError, NotFoundError
+from src.trading.clients.mt5_client import MT5Client
+from src.web.middlewares import ValidationError, NotFoundError
+from src.web.models.state_responses import SuccessResponse
 
 logger = logging.getLogger(__name__)
 
 class PositionService:
     """Service for handling position-related business logic"""
     
-    def __init__(self, trade_executor: TradeExecutor):
-        self.trade_executor = trade_executor
+    def __init__(self, mt5_client: MT5Client):
+        self.mt5_client = mt5_client
     
     async def get_positions(self) -> Dict[str, Any]:
         """
@@ -22,7 +23,7 @@ class PositionService:
             ValidationError: If position retrieval fails
         """
         try:
-            positions = self.trade_executor.get_active_positions()
+            positions = await self.mt5_client.fetch_positions()
             return {
                 "status": "success",
                 "positions": positions
@@ -38,7 +39,8 @@ class PositionService:
         self,
         symbol: str,
         take_profit: Optional[float] = None,
-        stop_loss: Optional[float] = None
+        stop_loss: Optional[float] = None,
+        comment: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Update take profit or stop loss for a position
@@ -55,15 +57,11 @@ class PositionService:
             NotFoundError: If position not found
         """
         try:
-            await self.trade_executor.update_position(
-                symbol=symbol,
-                take_profit=take_profit,
-                stop_loss=stop_loss
+            await self.mt5_client.modify_position(int(symbol), take_profit, stop_loss, comment)
+            return SuccessResponse(
+                status="success",
+                message=f"Updated position for {symbol}"
             )
-            return {
-                "status": "success",
-                "message": f"Updated position for {symbol}"
-            }
         except Exception as e:
             logger.error(f"Error updating position: {e}")
             raise NotFoundError(
@@ -85,14 +83,16 @@ class PositionService:
             NotFoundError: If position not found
         """
         try:
-            await self.trade_executor.close_position(symbol)
-            return {
-                "status": "success",
-                "message": f"Closed position for {symbol}"
-            }
+            await self.mt5_client.close_position(int(symbol))
+            return SuccessResponse(
+                status="success",
+                message=f"Closed position for {symbol}"
+            )
         except Exception as e:
             logger.error(f"Error closing position: {e}")
             raise NotFoundError(
                 f"Error closing position: {str(e)}",
                 {"symbol": symbol, "error": str(e)}
             ) 
+        
+__all__ = ["PositionService"]
